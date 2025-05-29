@@ -61,7 +61,23 @@ if uploaded_file is not None:
             st.subheader("Network Preview")
             # Generate pyvis network
             net = Network(height="600px", width="100%", notebook=False)
-            net.force_atlas_2based()
+
+            # add the physics control panel:
+            net.show_buttons(filter_=['physics'])
+
+            # 2. Tune the ForceAtlas2 layout a bit (optional)
+            net.force_atlas_2based(
+                gravity=-50,         # repulsion from center
+                central_gravity=0.01,
+                spring_length=150,    # desired link length
+                spring_strength=0.08,
+                damping=0.4
+            )
+            
+            # 3. Size nodes by their degree (so big hubs stand out)
+            for node in net.nodes:
+                node['size'] = G.degree(node['id']) * 5  # adjust multiplier as needed
+                
             net.from_nx(G)
             # Save to temporary HTML
             with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp:
