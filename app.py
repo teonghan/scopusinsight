@@ -34,8 +34,7 @@ if uploaded_file is not None:
         # Let user choose which column
         chosen_col = st.sidebar.selectbox("Select keyword column", keyword_cols)
         # Extract and preprocess keywords
-        raw_lists = df[chosen_col].dropna().astype(str).str.split(r";|,|
-")
+        raw_lists = df[chosen_col].dropna().astype(str).str.split(r";|,|")
         # Normalize
         keyword_lists = []
         for kws in raw_lists:
