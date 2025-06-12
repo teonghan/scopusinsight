@@ -35,13 +35,16 @@ def explode_asjc(pl_source):
     Splits ASJC code column into long form using Polars.
     """
     col = "All Science Journal Classification Codes (ASJC)"
-    # Remove spaces, replace missing with null, and split into lists
     df = pl_source.with_columns([
-        pl.col(col).cast(pl.Utf8).str.replace_all(" ", "").alias("ASJC_clean")
+        pl.col(col)
+            .cast(pl.Utf8)
+            .str.replace_all(" ", "")
+            .str.replace_all(",", ";")  # replace ',' with ';'
+            .alias("ASJC_clean")
     ]).filter(
         pl.col("ASJC_clean").is_not_null() & (pl.col("ASJC_clean") != "nan")
     ).with_columns([
-        pl.col("ASJC_clean").str.split(";|,", inclusive=False).alias("ASJC_list")
+        pl.col("ASJC_clean").str.split(";").alias("ASJC_list")
     ]).explode("ASJC_list").with_columns([
         pl.col("ASJC_list").cast(pl.Int64)
     ])
