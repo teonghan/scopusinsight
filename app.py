@@ -41,7 +41,7 @@ def explode_asjc(pl_source):
     ]).filter(
         pl.col("ASJC_clean").is_not_null() & (pl.col("ASJC_clean") != "nan")
     ).with_columns([
-        pl.col("ASJC_clean").str.split_any(";|,").alias("ASJC_list")
+        pl.col("ASJC_clean").str.split(";|,", inclusive=False).alias("ASJC_list")
     ]).explode("ASJC_list").with_columns([
         pl.col("ASJC_list").cast(pl.Int64)
     ])
