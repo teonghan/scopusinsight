@@ -1,94 +1,72 @@
 import streamlit as st
 import pandas as pd
-import networkx as nx
-from itertools import combinations
-from collections import Counter
-from pyvis.network import Network
-import streamlit.components.v1 as components
-import tempfile
 
-# App title
-st.set_page_config(page_title="Scopus Keywords Network", layout="wide")
-st.title("🔗 Scopus Keywords Co-occurrence Network")
+def read_scopus_excel(file):
+    """Extracts relevant columns from source sheet and cleans ASJC codes."""
+    wanted_cols = [
+        "Sourcerecord ID", "Source Title", "ISSN", "EISSN",
+        "Active or Inactive", "Source Type", "Publisher",
+        "Publisher Imprints Grouped to Main Publisher",
+        "All Science Journal Classification Codes (ASJC)",
+    ]
+    excel_file = pd.ExcelFile(file)
+    df_source_full = pd.read_excel(excel_file, sheet_name=excel_file.sheet_names[0])
+    cols_present = [col for col in wanted_cols if col in df_source_full.columns]
+    df_source = df_source_full[cols_present]
 
-# Sidebar: settings
-st.sidebar.header("Settings")
-threshold = st.sidebar.slider(
-    "Minimum co-occurrence frequency", min_value=1, max_value=10, value=2
-)
+    # ASJC code table from last sheet
+    asjc_df = pd.read_excel(
+        excel_file, 
+        sheet_name=excel_file.sheet_names[-1], 
+        usecols=[0, 1], 
+        skiprows=8, 
+        nrows=362
+    )
+    asjc_cleaned = asjc_df.dropna(subset=["Code"]).copy()
+    asjc_cleaned["Code"] = asjc_cleaned["Code"].astype(int)
+    return df_source, asjc_cleaned
 
-# File uploader
-uploaded_file = st.file_uploader(
-    "Upload Scopus CSV file", type=["csv"], help="Export from Scopus with keyword columns"
-)
+def explode_asjc(df):
+    """Splits ASJC codes into long form for filtering."""
+    df = df.copy()
+    col = "All Science Journal Classification Codes (ASJC)"
+    df["ASJC_list"] = (
+        df[col].astype(str).str.replace(" ", "")
+        .replace("nan", pd.NA)
+        .str.split(";|,")
+    )
+    df = df.explode("ASJC_list")
+    df["ASJC_list"] = pd.to_numeric(df["ASJC_list"], errors="coerce").astype("Int64")
+    return df
 
-if uploaded_file is not None:
-    # Read CSV
-    df = pd.read_csv(uploaded_file, low_memory=False)
+def filter_by_asjc(df_long, selected_codes):
+    """Filters the exploded sources by selected ASJC codes."""
+    return df_long[df_long["ASJC_list"].isin(selected_codes)]
 
-    # Identify keyword columns
-    keyword_cols = [col for col in df.columns if "keyword" in col.lower()]
-    if not keyword_cols:
-        st.error("No keyword column found. Make sure your CSV has a column named 'Author Keywords' or similar.")
+def main():
+    st.title("Scopus Journal Filter by ASJC Category")
+
+    uploaded = st.file_uploader("Upload Scopus Source Excel", type=["xlsx"])
+    if not uploaded:
+        st.info("Please upload a Scopus Source Excel file.")
+        return
+
+    df_source, df_asjc = read_scopus_excel(uploaded)
+    df_long = explode_asjc(df_source)
+
+    asjc_options = df_asjc.set_index("Code")["Description"].to_dict()
+    selected = st.multiselect(
+        "Select ASJC Categories",
+        options=list(asjc_options.keys()),
+        format_func=lambda x: f"{x} – {asjc_options.get(x, '')}"
+    )
+
+    if selected:
+        filtered = filter_by_asjc(df_long, selected)
+        st.write(f"Journals matching selected ASJC categories ({filtered['Sourcerecord ID'].nunique()}):")
+        st.dataframe(filtered.drop_duplicates(subset=["Sourcerecord ID"]))
     else:
-        # Let user choose which column
-        chosen_col = st.sidebar.selectbox("Select keyword column", keyword_cols)
-        # Extract and preprocess keywords
-        raw_lists = df[chosen_col].dropna().astype(str).str.split(r";|,|")
-        # Normalize
-        keyword_lists = []
-        for kws in raw_lists:
-            cleaned = [kw.strip().lower() for kw in kws if kw.strip()]
-            if cleaned:
-                keyword_lists.append(cleaned)
+        st.info("Select one or more ASJC categories to filter journals.")
 
-        # Build co-occurrence counts
-        pairs = []
-        for kws in keyword_lists:
-            for a, b in combinations(set(kws), 2):
-                pairs.append(tuple(sorted((a, b))))
-        co_counts = Counter(pairs)
-
-        # Build network graph
-        G = nx.Graph()
-        for (a, b), w in co_counts.items():
-            if w >= threshold:
-                G.add_edge(a, b, weight=w)
-
-        if G.number_of_nodes() == 0:
-            st.warning("No edges with the given threshold. Try lowering the threshold.")
-        else:
-            st.subheader("Network Preview")
-            # Generate pyvis network
-            net = Network(height="600px", width="100%", notebook=False)
-
-            # add the physics control panel:
-            net.show_buttons(filter_=['physics'])
-
-            # 2. Tune the ForceAtlas2 layout a bit (optional)
-            net.force_atlas_2based(
-                gravity=-50,         # repulsion from center
-                central_gravity=0.01,
-                spring_length=150,    # desired link length
-                spring_strength=0.08,
-                damping=0.4
-            )
-            
-            # 3. Size nodes by their degree (so big hubs stand out)
-            for node in net.nodes:
-                node['size'] = G.degree(node['id']) * 5  # adjust multiplier as needed
-                
-            net.from_nx(G)
-            # Save to temporary HTML
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp:
-                net.save_graph(tmp.name)
-                html_path = tmp.name
-            # Display in Streamlit
-            components.html(
-                open(html_path, 'r', encoding='utf-8').read(),
-                height=600,
-                scrolling=True
-            )
-
-else:
-    st.info("Upload a Scopus CSV to get started.")
+if __name__ == "__main__":
+    main()
