@@ -64,10 +64,10 @@ def filter_and_collect_matches_with_desc(pl_source, selected_codes, asjc_dict):
         pl.col("ASJC_clean").str.split(";").alias("ASJC_list")
     ])
 
-    # Collect the matching codes for each journal
+    # Collect the matching codes for each journal using .apply
     df = df.with_columns([
-        pl.col("ASJC_list").arr.filter(
-            lambda x: pl.lit(selected_codes).arr.contains(x)
+        pl.col("ASJC_list").apply(
+            lambda arr: [int(code) for code in arr if code and int(code) in selected_codes] if isinstance(arr, list) else []
         ).alias("Matched_ASJC")
     ])
 
@@ -76,7 +76,7 @@ def filter_and_collect_matches_with_desc(pl_source, selected_codes, asjc_dict):
         if not isinstance(codes, list):
             return []
         return [asjc_dict.get(int(code), str(code)) for code in codes if code is not None]
-    
+
     df = df.with_columns([
         pl.col("Matched_ASJC").apply(codes_to_desc).alias("Matched_ASJC_Description")
     ])
