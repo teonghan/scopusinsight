@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 
+# === Caching functions ===
+
 @st.cache_data
 def read_scopus_excel(file):
     wanted_cols = [
@@ -24,6 +26,35 @@ def read_scopus_excel(file):
     asjc_cleaned["Code"] = asjc_cleaned["Code"].astype(int)
     return df_source, asjc_cleaned
 
+@st.cache_data
+def read_and_merge_scopus_csv(files):
+    if not files:
+        return None, "No files uploaded."
+    if len(files) > 10:
+        return None, "Please upload no more than 10 CSV files at once."
+    dataframes = []
+    base_columns = None
+    for i, file in enumerate(files):
+        try:
+            df = pd.read_csv(file)
+        except Exception as e:
+            return None, f"Error reading file '{file.name}': {str(e)}"
+        if base_columns is None:
+            base_columns = df.columns.tolist()
+        else:
+            if df.columns.tolist() != base_columns:
+                return None, (
+                    f"Column mismatch detected!\n"
+                    f"File '{file.name}' has columns:\n{df.columns.tolist()}\n"
+                    f"First file has columns:\n{base_columns}\n"
+                    "Please ensure all CSVs have the same columns in the same order."
+                )
+        dataframes.append(df)
+    merged_df = pd.concat(dataframes, ignore_index=True)
+    return merged_df, None
+
+# === Section: Journal Filter ===
+
 def filter_and_collect_matches_with_desc(df_source, selected_codes, asjc_dict):
     col = "All Science Journal Classification Codes (ASJC)"
     df = df_source.copy()
@@ -46,47 +77,58 @@ def filter_and_collect_matches_with_desc(df_source, selected_codes, asjc_dict):
     ]
     return df_filtered[display_cols]
 
-def main():
-    st.title("Scopus Journal Filter by ASJC Category (Pandas Edition)")
+def section_journal_filter(df_source, df_asjc):
+    st.header("Journal Filter Section")
 
-    uploaded = st.file_uploader("Upload Scopus Source Excel", type=["xlsx"])
-    if uploaded:
-        # Clear session state if a new file is uploaded
-        if "last_filename" not in st.session_state or uploaded.name != st.session_state.get("last_filename", ""):
-            st.session_state.filtered = None
-            st.session_state.selected = []
-            st.session_state.filter_clicked = False
-            st.session_state.last_filename = uploaded.name
+    asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
+    selected = st.multiselect(
+        "Select ASJC Categories",
+        options=df_asjc["Code"],
+        format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}"
+    )
 
-        df_source, df_asjc = read_scopus_excel(uploaded)
-        asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
-
-        selected = st.multiselect(
-            "Select ASJC Categories",
-            options=df_asjc["Code"],
-            format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}",
-            default=st.session_state.get("selected", [])
-        )
-
-        # Track filter button click with session_state
-        filter_now = st.button("Filter Journals")
-        if filter_now:
-            st.session_state.filter_clicked = True
-            st.session_state.selected = selected
-
-        # Only filter and show table if the button was clicked, and a selection exists
-        if st.session_state.get("filter_clicked", False):
-            if st.session_state.get("selected", []):
-                filtered = filter_and_collect_matches_with_desc(df_source, st.session_state.selected, asjc_dict)
-                st.session_state.filtered = filtered
-                st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
-                st.dataframe(filtered)
-            else:
-                st.warning("Please select at least one ASJC category before filtering.")
+    filter_now = st.button("Filter Journals")
+    if filter_now:
+        if not selected:
+            st.warning("Please select at least one ASJC category before filtering.")
         else:
-            st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
+            filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
+            st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
+            st.dataframe(filtered)
     else:
-        st.info("Please upload a Scopus Source Excel file.")
+        st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
+
+# === Main App ===
+
+def main():
+    st.title("Scopus Analysis Toolkit")
+
+    # === Sidebar for file uploads ===
+    st.sidebar.header("1. Upload Files")
+    excel_file = st.sidebar.file_uploader("Upload Scopus Source Excel", type=["xlsx"])
+    csv_files = st.sidebar.file_uploader(
+        "Upload up to 10 Scopus Export CSV files", type=["csv"], accept_multiple_files=True
+    )
+
+    # Load files
+    df_source, df_asjc = None, None
+    df_export, csv_error = None, None
+    if excel_file:
+        df_source, df_asjc = read_scopus_excel(excel_file)
+    if csv_files:
+        df_export, csv_error = read_and_merge_scopus_csv(csv_files)
+        if csv_error:
+            st.sidebar.error(csv_error)
+        else:
+            st.sidebar.success(f"Successfully merged {len(csv_files)} CSV files ({len(df_export)} rows).")
+
+    # === Main: Section navigation ===
+    tabs = st.tabs(["Journal Filter"])
+    with tabs[0]:
+        if df_source is not None and df_asjc is not None:
+            section_journal_filter(df_source, df_asjc)
+        else:
+            st.info("Please upload the Scopus Source Excel to use this section.")
 
 if __name__ == "__main__":
     main()
