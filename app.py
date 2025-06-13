@@ -100,7 +100,7 @@ def main():
         return
 
     pl_source, pl_asjc = read_scopus_excel(uploaded)
-    pl_long = explode_asjc(pl_source)
+    # pl_long = explode_asjc(pl_source)
 
     # Prepare options for ASJC selection
     asjc_options = dict(zip(pl_asjc["Code"].to_list(), pl_asjc["Description"].to_list()))
@@ -114,7 +114,12 @@ def main():
     if selected:
         filtered = filter_and_collect_matches_with_desc(pl_source, [int(x) for x in selected], asjc_dict)
         st.write(f"Journals matching selected ASJC categories ({filtered.height}):")
-        st.dataframe(filtered.to_pandas())
+        st.dataframe(
+            filtered.with_columns(
+                pl.col("Matched_ASJC_Description").apply(lambda x: "; ".join(x)).alias("Matched_ASJC_Description")
+            ).to_pandas()
+        )
+
     else:
         st.info("Select one or more ASJC categories to filter journals.")
 
