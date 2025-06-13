@@ -54,6 +54,7 @@ def main():
         if "last_filename" not in st.session_state or uploaded.name != st.session_state.get("last_filename", ""):
             st.session_state.filtered = None
             st.session_state.selected = []
+            st.session_state.filter_clicked = False
             st.session_state.last_filename = uploaded.name
 
         df_source, df_asjc = read_scopus_excel(uploaded)
@@ -66,23 +67,21 @@ def main():
             default=st.session_state.get("selected", [])
         )
 
+        # Track filter button click with session_state
         filter_now = st.button("Filter Journals")
+        if filter_now:
+            st.session_state.filter_clicked = True
+            st.session_state.selected = selected
 
-        # Store selection in session state
-        st.session_state.selected = selected
-
-        if filter_now and selected:
-            filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
-            st.session_state.filtered = filtered
-            st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
-            st.dataframe(filtered)
-        elif filter_now and not selected:
-            st.session_state.filtered = None
-            st.warning("Please select at least one ASJC category before filtering.")
-        elif st.session_state.get("filtered") is not None:
-            filtered = st.session_state.filtered
-            st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
-            st.dataframe(filtered)
+        # Only filter and show table if the button was clicked, and a selection exists
+        if st.session_state.get("filter_clicked", False):
+            if st.session_state.get("selected", []):
+                filtered = filter_and_collect_matches_with_desc(df_source, st.session_state.selected, asjc_dict)
+                st.session_state.filtered = filtered
+                st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
+                st.dataframe(filtered)
+            else:
+                st.warning("Please select at least one ASJC category before filtering.")
         else:
             st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
     else:
