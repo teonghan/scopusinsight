@@ -70,12 +70,16 @@ def main():
         format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}"
     )
 
-    if selected:
+    filter_now = st.button("Filter Journals")
+
+    if filter_now and selected:
         filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
         st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
         st.dataframe(filtered)
+    elif filter_now and not selected:
+        st.warning("Please select at least one ASJC category before filtering.")
     else:
-        st.info("Select one or more ASJC categories to filter journals.")
+        st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
 
 if __name__ == "__main__":
     main()
