@@ -50,6 +50,47 @@ def explode_asjc(pl_source):
     ])
     return df
 
+def filter_and_collect_matches_with_desc(pl_source, selected_codes, asjc_dict):
+    col = "All Science Journal Classification Codes (ASJC)"
+    df = pl_source.with_columns([
+        pl.col(col)
+            .cast(pl.Utf8)
+            .str.replace_all(" ", "")
+            .str.replace_all(",", ";")
+            .alias("ASJC_clean")
+    ]).filter(
+        pl.col("ASJC_clean").is_not_null() & (pl.col("ASJC_clean") != "nan")
+    ).with_columns([
+        pl.col("ASJC_clean").str.split(";").alias("ASJC_list")
+    ])
+
+    # Collect the matching codes for each journal
+    df = df.with_columns([
+        pl.col("ASJC_list").arr.filter(
+            lambda x: pl.lit(selected_codes).arr.contains(x)
+        ).alias("Matched_ASJC")
+    ])
+
+    # Map matched codes to descriptions
+    def codes_to_desc(codes):
+        if not isinstance(codes, list):
+            return []
+        return [asjc_dict.get(int(code), str(code)) for code in codes if code is not None]
+    
+    df = df.with_columns([
+        pl.col("Matched_ASJC").apply(codes_to_desc).alias("Matched_ASJC_Description")
+    ])
+
+    # Only keep journals with at least one matched code
+    df_filtered = df.filter(pl.col("Matched_ASJC").list.lengths() > 0)
+    display_cols = [
+        "Sourcerecord ID", "Source Title", "ISSN", "EISSN",
+        "Active or Inactive", "Source Type", "Publisher",
+        "Publisher Imprints Grouped to Main Publisher",
+        "Matched_ASJC", "Matched_ASJC_Description"
+    ]
+    return df_filtered.select([c for c in display_cols if c in df_filtered.columns])
+
 def main():
     st.title("Scopus Journal Filter by ASJC Category (Polars Edition)")
 
@@ -63,6 +104,7 @@ def main():
 
     # Prepare options for ASJC selection
     asjc_options = dict(zip(pl_asjc["Code"].to_list(), pl_asjc["Description"].to_list()))
+    asjc_dict = dict(zip(pl_asjc["Code"].to_list(), pl_asjc["Description"].to_list()))
     selected = st.multiselect(
         "Select ASJC Categories",
         options=list(asjc_options.keys()),
@@ -70,12 +112,9 @@ def main():
     )
 
     if selected:
-        # Filter journals where any ASJC matches selection
-        filtered = pl_long.filter(pl.col("ASJC_list").is_in(selected))
-        # Show unique journals (by Sourcerecord ID)
-        filtered_unique = filtered.unique(subset=["Sourcerecord ID"])
-        st.write(f"Journals matching selected ASJC categories ({filtered_unique.height}):")
-        st.dataframe(filtered_unique.to_pandas())
+        filtered = filter_and_collect_matches_with_desc(pl_source, [int(x) for x in selected], asjc_dict)
+        st.write(f"Journals matching selected ASJC categories ({filtered.height}):")
+        st.dataframe(filtered.to_pandas())
     else:
         st.info("Select one or more ASJC categories to filter journals.")
 
