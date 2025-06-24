@@ -129,6 +129,20 @@ def section_journal_filter(df_source, df_asjc):
             filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
             st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
             st.dataframe(filtered)
+
+            st.subheader("Journal Activity Status")
+            if "Active or Inactive" in filtered.columns:
+                status_counts = filtered["Active or Inactive"].value_counts().reset_index()
+                status_counts.columns = ["Status", "Count"]
+                fig_status = px.pie(status_counts, names="Status", values="Count", title="Active vs Inactive Journals")
+                st.plotly_chart(fig_status, use_container_width=True)
+
+            st.subheader("Source Type Distribution")
+            if "Source Type" in filtered.columns:
+                type_counts = filtered["Source Type"].value_counts().reset_index()
+                type_counts.columns = ["Source Type", "Count"]
+                fig_type = px.bar(type_counts, x="Source Type", y="Count", title="Source Type Distribution")
+                st.plotly_chart(fig_type, use_container_width=True)
     else:
         st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
 
