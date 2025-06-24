@@ -215,6 +215,7 @@ def add_asjc_to_export_csv(df_export, df_source, df_asjc):
     df_export["Matched_ASJC_Description"] = df_export["Matched_ASJC"].apply(lambda codes: [asjc_dict.get(code, str(code)) for code in codes])
     return df_export
 
+'''
 def section_issn_asjc_export_csv(df_export, df_source, df_asjc):
     st.header("Map Export CSV to Scopus Source & ASJC")
     # Add ASJC codes to CSV
@@ -236,6 +237,7 @@ def section_issn_asjc_export_csv(df_export, df_source, df_asjc):
         df_show = df_show[df_show["Matched_ASJC"].apply(lambda codes: any(code in selected for code in codes))]
 
     st.dataframe(df_show)
+'''
 
 # ======================================
 # --- Export CSV Tagged with ASJC -------
@@ -342,11 +344,6 @@ def main():
     with tabs[1]:
         if df_export is not None and df_source is not None and df_asjc is not None:
             section_issn_asjc_export_csv(df_export, df_source, df_asjc)
-        else:
-            st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
-    with tabs[2]:
-        if df_export is not None and df_source is not None and df_asjc is not None:
-            section_issn_asjc_export_tagged(df_export, df_source, df_asjc)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
