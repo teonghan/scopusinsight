@@ -202,12 +202,23 @@ def section_map_export_csv(df_export, df_source, df_asjc):
     all_codes = sorted(set(code for codes in df_export_with_asjc["Matched_ASJC"] for code in codes))
     asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
 
-    selected = st.multiselect(
-        "Filter by ASJC Categories",
-        options=all_codes,
-        format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}",
-        key="csv_asjc"
-    )
+    select_all_csv = st.checkbox("Select All ASJC Categories (CSV Tab)")
+    if select_all_csv:
+        selected = st.multiselect(
+            "Filter by ASJC Categories",
+            options=all_codes,
+            default=all_codes,
+            format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}",
+            key="csv_asjc"
+        )
+    else:
+        selected = st.multiselect(
+            "Filter by ASJC Categories",
+            options=all_codes,
+            format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}",
+            key="csv_asjc"
+        )
+
     df_show = df_export_with_asjc.copy()
     if selected:
         df_show = df_show[df_show["Matched_ASJC"].apply(lambda codes: any(code in selected for code in codes))]
