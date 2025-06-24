@@ -17,6 +17,11 @@ def read_scopus_excel(file):
     df_source_full = pd.read_excel(excel_file, sheet_name=excel_file.sheet_names[0])
     cols_present = [col for col in wanted_cols if col in df_source_full.columns]
     df_source = df_source_full[cols_present]
+    
+    # Format ISSN/EISSN columns to XXXX-XXXX
+    df_source["ISSN"] = df_source["ISSN"].apply(clean_issn)
+    df_source["EISSN"] = df_source["EISSN"].apply(clean_issn)
+    
     asjc_df = pd.read_excel(
         excel_file, 
         sheet_name=excel_file.sheet_names[-1], 
