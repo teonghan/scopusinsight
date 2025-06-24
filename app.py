@@ -59,6 +59,14 @@ def read_and_merge_scopus_csv(files):
                 )
         dataframes.append(df)
     merged_df = pd.concat(dataframes, ignore_index=True)
+    
+    # -----------
+    # Clean ISSN
+    # -----------
+    merged_df["ISSN"] = merged_df["ISSN"].apply(clean_issn)
+    if "EISSN" in merged_df.columns:
+        merged_df["EISSN"] = merged_df["EISSN"].apply(clean_issn)
+        
     return merged_df, None
 
 def clean_issn(val):
@@ -141,6 +149,7 @@ def section_journal_filter(df_source, df_asjc):
             filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
             st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
             st.dataframe(filtered)
+            
             # ... any charts or stats here ...
             st.subheader("Journal Activity Status")
             if "Active or Inactive" in filtered.columns:
@@ -170,61 +179,70 @@ def section_journal_filter(df_source, df_asjc):
                 st.plotly_chart(fig_stack, use_container_width=True)
     else:
         st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
+        
 # ==========================
 # --- ISSN-ASJC Match ------
 # ==========================
-
-def section_issn_asjc(df_export, df_source, df_asjc):
-    st.header("Match ISSN to Scopus Source & ASJC")
-    asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
-
-    # Standardize ISSN/EISSN in both dataframes
+def add_asjc_to_export_csv(df_export, df_source, df_asjc):
+    # Standardize ISSN/EISSN in source
     df_source = df_source.copy()
     df_source["ISSN_clean"] = df_source["ISSN"].apply(clean_issn)
     df_source["EISSN_clean"] = df_source["EISSN"].apply(clean_issn)
-    df_export = df_export.copy()
-    df_export["ISSN_clean"] = df_export["ISSN"].apply(clean_issn)
-    if "EISSN" not in df_export.columns:
-        df_export["EISSN"] = None
-    df_export["EISSN_clean"] = df_export["EISSN"].apply(clean_issn)
 
-    # Matching maps
+    # Create mapping from ISSN/EISSN to ASJC codes
     issn_map = df_source.set_index('ISSN_clean')["All Science Journal Classification Codes (ASJC)"].to_dict()
     eissn_map = df_source.set_index('EISSN_clean')["All Science Journal Classification Codes (ASJC)"].to_dict()
 
-    # Build a DataFrame of matched sources from the source list
-    issns = set(df_export["ISSN_clean"].dropna())
-    matched = df_source[df_source["ISSN_clean"].isin(issns)].copy()
-    matched["MatchType"] = "ISSN"
-    matched_issns = set(matched["ISSN_clean"])
-    unmatched_issns = issns - matched_issns
-    matched2 = df_source[df_source["EISSN_clean"].isin(unmatched_issns)].copy()
-    matched2["MatchType"] = "EISSN"
-    df_matched = pd.concat([matched, matched2], ignore_index=True)
+    # Ensure CSV columns are standardized
+    df_export = df_export.copy()
+    df_export["ISSN"] = df_export["ISSN"].apply(clean_issn)
+    if "EISSN" in df_export.columns:
+        df_export["EISSN"] = df_export["EISSN"].apply(clean_issn)
+    else:
+        df_export["EISSN"] = None
 
-    # ASJC columns
-    col = "All Science Journal Classification Codes (ASJC)"
-    df_matched[col] = (
-        df_matched[col]
-        .astype(str)
-        .str.replace(" ", "")
-        .str.replace(",", ";")
-        .replace("nan", "")
+    # Add ASJC list to each CSV row
+    def get_asjc_codes(row):
+        issn = row["ISSN"]
+        eissn = row["EISSN"]
+        codes = None
+        if issn in issn_map and pd.notna(issn_map[issn]):
+            codes = issn_map[issn]
+        elif eissn in eissn_map and pd.notna(eissn_map[eissn]):
+            codes = eissn_map[eissn]
+        if codes:
+            codes_list = [int(code) for code in str(codes).replace(" ", "").replace(",", ";").split(";") if code.isdigit()]
+            return codes_list
+        else:
+            return []
+    df_export["Matched_ASJC"] = df_export.apply(get_asjc_codes, axis=1)
+
+    # Get ASJC descriptions
+    asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
+    df_export["Matched_ASJC_Description"] = df_export["Matched_ASJC"].apply(lambda codes: [asjc_dict.get(code, str(code)) for code in codes])
+    return df_export
+
+def section_issn_asjc_export_csv(df_export, df_source, df_asjc):
+    st.header("Map Export CSV to Scopus Source & ASJC")
+    # Add ASJC codes to CSV
+    df_export_with_asjc = add_asjc_to_export_csv(df_export, df_source, df_asjc)
+
+    # Optional: Filtering by ASJC code
+    all_codes = sorted(set(code for codes in df_export_with_asjc["Matched_ASJC"] for code in codes))
+    asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
+
+    selected = st.multiselect(
+        "Filter by ASJC Categories",
+        options=all_codes,
+        format_func=lambda x: f"{x} – {asjc_dict.get(x, '')}",
+        key="csv_asjc"
     )
-    df_matched["ASJC_list"] = df_matched[col].apply(lambda x: [int(code) for code in x.split(";") if code.isdigit()])
-    df_matched["Matched_ASJC"] = df_matched["ASJC_list"]
-    df_matched["Matched_ASJC_Description"] = df_matched["Matched_ASJC"].apply(lambda codes: [asjc_dict.get(code, str(code)) for code in codes])
 
-    display_cols = [
-        "Sourcerecord ID", "Source Title", "ISSN", "EISSN",
-        "Active or Inactive", "Source Type", "Publisher",
-        "Publisher Imprints Grouped to Main Publisher", "MatchType",
-        "Matched_ASJC", "Matched_ASJC_Description"
-    ]
-    df_final = df_matched[display_cols].copy()
+    df_show = df_export_with_asjc.copy()
+    if selected:
+        df_show = df_show[df_show["Matched_ASJC"].apply(lambda codes: any(code in selected for code in codes))]
 
-    st.write(f"Found {len(df_final)} sources matched by ISSN/EISSN.")
-    display_journal_table(df_final, asjc_dict, filter_label="Filter by ASJC Categories (Matched Section)")
+    st.dataframe(df_show)
 
 # ======================================
 # --- Export CSV Tagged with ASJC -------
