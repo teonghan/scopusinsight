@@ -122,7 +122,7 @@ def section_journal_filter(df_source, df_asjc):
         else:
             filtered = filter_and_collect_matches_with_desc(df_source, selected, asjc_dict)
             st.write(f"Journals matching selected ASJC categories ({len(filtered)}):")
-            display_journal_table(filtered, asjc_dict, filter_label="Filter by ASJC Categories (Journal Filter)")
+            st.dataframe(filtered)
     else:
         st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
 
