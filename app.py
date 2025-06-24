@@ -341,7 +341,7 @@ def main():
             st.info("Please upload the Scopus Source Excel to use this section.")
     with tabs[1]:
         if df_export is not None and df_source is not None and df_asjc is not None:
-            section_issn_asjc(df_export, df_source, df_asjc)
+            section_issn_asjc_export_csv(df_export, df_source, df_asjc)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
     with tabs[2]:
