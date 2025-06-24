@@ -245,26 +245,39 @@ def section_issn_asjc_export_tagged(df_export, df_source, df_asjc):
 def main():
     st.title("Scopus Analysis Toolkit")
 
-    # === Sidebar for file uploads ===
-    st.sidebar.header("1. Upload Files")
-    excel_file = st.sidebar.file_uploader("Upload Scopus Source Excel", type=["xlsx"])
-    csv_files = st.sidebar.file_uploader(
-        "Upload up to 10 Scopus Export CSV files", type=["csv"], accept_multiple_files=True
-    )
+    # 1. Excel uploader appears first
+    st.sidebar.header("1. Upload Scopus Source Excel")
+    excel_file = st.sidebar.file_uploader("Upload Scopus Source Excel", type=["xlsx"], key="excel_upload")
 
-    # Load files
     df_source, df_asjc = None, None
     df_export, csv_error = None, None
+
+    # 2. Read Excel before showing CSV uploader
     if excel_file:
         df_source, df_asjc = read_scopus_excel(excel_file)
-    if csv_files:
-        df_export, csv_error = read_and_merge_scopus_csv(csv_files)
-        if csv_error:
-            st.sidebar.error(csv_error)
-        else:
-            st.sidebar.success(f"Successfully merged {len(csv_files)} CSV files ({len(df_export)} rows).")
+        st.sidebar.success("Excel file loaded. Please proceed to upload CSV file(s).")
 
-    # === Main: Section navigation ===
+        # 3. Now show CSV uploader
+        st.sidebar.header("2. Upload Scopus Export CSV(s)")
+        csv_files = st.sidebar.file_uploader(
+            "Upload up to 10 Scopus Export CSV files",
+            type=["csv"],
+            accept_multiple_files=True,
+            key="csv_upload"
+        )
+
+        # 4. Read CSV files if uploaded
+        if csv_files:
+            df_export, csv_error = read_and_merge_scopus_csv(csv_files)
+            if csv_error:
+                st.sidebar.error(csv_error)
+            else:
+                st.sidebar.success(f"Successfully merged {len(csv_files)} CSV files ({len(df_export)} rows).")
+    else:
+        # 5. CSV uploader is hidden until Excel is uploaded
+        st.sidebar.info("Please upload the Scopus Source Excel first.")
+
+    # Main tabs
     tabs = st.tabs(["Journal Filter", "ISSN-ASJC Match", "Export CSV Tagged"])
     with tabs[0]:
         if df_source is not None and df_asjc is not None:
@@ -284,3 +297,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
