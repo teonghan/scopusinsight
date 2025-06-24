@@ -137,12 +137,26 @@ def section_journal_filter(df_source, df_asjc):
                 fig_status = px.pie(status_counts, names="Status", values="Count", title="Active vs Inactive Journals")
                 st.plotly_chart(fig_status, use_container_width=True)
 
-            st.subheader("Source Type Distribution")
-            if "Source Type" in filtered.columns:
-                type_counts = filtered["Source Type"].value_counts().reset_index()
-                type_counts.columns = ["Source Type", "Count"]
-                fig_type = px.bar(type_counts, x="Source Type", y="Count", title="Source Type Distribution")
-                st.plotly_chart(fig_type, use_container_width=True)
+            # --- Stacked Bar Chart: Active/Inactive by Source Type ---
+            st.subheader("Journal Activity Status by Source Type")
+            if "Active or Inactive" in filtered.columns and "Source Type" in filtered.columns:
+                # Prepare data
+                type_status_counts = (
+                    filtered
+                    .groupby(['Source Type', 'Active or Inactive'])
+                    .size()
+                    .reset_index(name='Count')
+                )
+                fig_stack = px.bar(
+                    type_status_counts,
+                    x="Source Type",
+                    y="Count",
+                    color="Active or Inactive",
+                    title="Active/Inactive Journals by Source Type",
+                    barmode="stack"
+                )
+                st.plotly_chart(fig_stack, use_container_width=True)
+
     else:
         st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
 
