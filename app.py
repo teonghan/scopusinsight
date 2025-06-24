@@ -59,13 +59,6 @@ def read_and_merge_scopus_csv(files):
                 )
         dataframes.append(df)
     merged_df = pd.concat(dataframes, ignore_index=True)
-    
-    # -----------
-    # Clean ISSN
-    # -----------
-    merged_df["ISSN"] = merged_df["ISSN"].apply(clean_issn)
-    if "EISSN" in merged_df.columns:
-        merged_df["EISSN"] = merged_df["EISSN"].apply(clean_issn)
         
     return merged_df, None
 
