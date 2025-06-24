@@ -143,31 +143,31 @@ def section_journal_filter(df_source, df_asjc):
             st.dataframe(filtered)
             # ... any charts or stats here ...
             st.subheader("Journal Activity Status")
-                if "Active or Inactive" in filtered.columns:
-                    status_counts = filtered["Active or Inactive"].value_counts().reset_index()
-                    status_counts.columns = ["Status", "Count"]
-                    fig_status = px.pie(status_counts, names="Status", values="Count", title="Active vs Inactive Journals")
-                    st.plotly_chart(fig_status, use_container_width=True)
+            if "Active or Inactive" in filtered.columns:
+                status_counts = filtered["Active or Inactive"].value_counts().reset_index()
+                status_counts.columns = ["Status", "Count"]
+                fig_status = px.pie(status_counts, names="Status", values="Count", title="Active vs Inactive Journals")
+                st.plotly_chart(fig_status, use_container_width=True)
 
             # --- Stacked Bar Chart: Active/Inactive by Source Type ---
             st.subheader("Journal Activity Status by Source Type")
-                if "Active or Inactive" in filtered.columns and "Source Type" in filtered.columns:
-                    # Prepare data
-                    type_status_counts = (
-                        filtered
-                        .groupby(['Source Type', 'Active or Inactive'])
-                        .size()
-                        .reset_index(name='Count')
-                    )
-                    fig_stack = px.bar(
-                        type_status_counts,
-                        x="Source Type",
-                        y="Count",
-                        color="Active or Inactive",
-                        title="Active/Inactive Journals by Source Type",
-                        barmode="stack"
-                    )
-                    st.plotly_chart(fig_stack, use_container_width=True)
+            if "Active or Inactive" in filtered.columns and "Source Type" in filtered.columns:
+                # Prepare data
+                type_status_counts = (
+                    filtered
+                    .groupby(['Source Type', 'Active or Inactive'])
+                    .size()
+                    .reset_index(name='Count')
+                )
+                fig_stack = px.bar(
+                    type_status_counts,
+                    x="Source Type",
+                    y="Count",
+                    color="Active or Inactive",
+                    title="Active/Inactive Journals by Source Type",
+                    barmode="stack"
+                )
+                st.plotly_chart(fig_stack, use_container_width=True)
     else:
         st.info("Select one or more ASJC categories, then click 'Filter Journals'.")
 # ==========================
