@@ -11,6 +11,17 @@ def extract_name(id_str):
     m = re.match(r'(.+)\s\(\d+\)$', id_str.strip())
     return m.group(1) if m else id_str.strip()
 
+def author_name_variants(surname_first):
+    """
+    Given 'Yuen S.K.K.', returns a set with 'Yuen S.K.K.' and 'S.K.K. Yuen'.
+    """
+    parts = surname_first.split()
+    if len(parts) < 2:
+        return {surname_first}
+    surname = parts[0]
+    initials = " ".join(parts[1:])  # 'S.K.K.'
+    return {surname_first, f"{initials} {surname}".strip()}
+
 # ===============================
 # --- Data Loading and Helpers ---
 # ===============================
@@ -232,7 +243,7 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.dataframe(df_show)
 
 def section_author_asjc_summary(df_export_with_asjc):
-    st.header("Author Analysis Summary (with Corresponding Author detection)")
+    st.header("Author Analysis Summary (with robust Corresponding Author detection)")
 
     df_expanded = df_export_with_asjc.copy()
     df_expanded = df_expanded.explode("Matched_ASJC_Description")
@@ -245,14 +256,14 @@ def section_author_asjc_summary(df_export_with_asjc):
         correspondence_address = str(row.get("Correspondence Address", ""))
         asjc = row.get("Matched_ASJC_Description", None)
 
-        # Parse corresponding author(s): names before first semicolon
+        # Names in Correspondence Address (before first semicolon)
         corresponding_names_raw = correspondence_address.split(";", 1)[0]
-        # If multiple names: "Yuen S.K.K.; Smith J." etc.
+        # Might be several names: "S.K.K. Yuen; ..." (initials first format)
         corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
 
         n = min(len(names), len(ids_full), len(authors_with_affil))
         for i in range(n):
-            name = names[i]
+            name = names[i]  # e.g. 'Yuen S.K.K.'
             id_full = ids_full[i]
             author_id = extract_id(id_full)
             name_variant = extract_name(id_full)
@@ -260,8 +271,10 @@ def section_author_asjc_summary(df_export_with_asjc):
             affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
             author_type = "First Author" if i == 0 else "Co-author"
 
-            # Improved corresponding author logic
-            if any(name == corr for corr in corresponding_names):
+            # Build both variants for matching
+            variants = author_name_variants(name)
+            # Improved detection: if ANY variant matches a Correspondence Address name, mark as Corresponding
+            if any(v in corresponding_names for v in variants):
                 author_type = "Corresponding Author"
 
             author_rows.append({
