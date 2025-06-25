@@ -1,6 +1,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import re
+
+def extract_id(id_str):
+    m = re.search(r'\((\d+)\)$', id_str)
+    return m.group(1) if m else id_str.strip()
+
+def extract_name(id_str):
+    m = re.match(r'(.+)\s\(\d+\)$', id_str.strip())
+    return m.group(1) if m else id_str.strip()
 
 # ===============================
 # --- Data Loading and Helpers ---
@@ -223,39 +232,43 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.dataframe(df_show)
 
 def section_author_analysis(df_export_with_asjc):
-    st.header("Author Analysis (with Scopus Author ID)")
+    st.header("Author Analysis (by Scopus Author ID, name, affiliation variations)")
 
     # Explode ASJC so each row is 1 paper, 1 author, 1 ASJC
     df_expanded = df_export_with_asjc.copy()
     df_expanded = df_expanded.explode("Matched_ASJC_Description")
 
     author_rows = []
+
     for idx, row in df_expanded.iterrows():
+        # All splits positional!
         names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
-        ids = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
-        affiliations = [x.strip() for x in str(row.get("Affiliations", "")).split(";")]
+        ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
+        authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
         asjc = row.get("Matched_ASJC_Description", None)
         corresponding = row.get("Corresponding Author", None)
 
-        n = max(len(names), len(ids), len(affiliations))
+        n = min(len(names), len(ids_full), len(authors_with_affil))
         for i in range(n):
-            # Fallback in case of missing fields
-            name = names[i] if i < len(names) else ""
-            author_id = ids[i] if i < len(ids) else ""
-            affiliation = affiliations[i] if i < len(affiliations) else ""
+            name = names[i]
+            id_full = ids_full[i]
+            author_id = extract_id(id_full)
+            name_variant = extract_name(id_full)
+            split_affil = authors_with_affil[i].split(",", 1)
+            affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
+
             # Author type logic
-            if i == 0:
-                author_type = "First Author"
-            else:
-                author_type = "Co-author"
+            author_type = "First Author" if i == 0 else "Co-author"
             if corresponding and name in corresponding:
                 author_type = "Corresponding Author"
+
             author_rows.append({
-                "Author Name": name,
                 "Author ID": author_id,
+                "Author Name": name,
+                "Author Name (from ID)": name_variant,
                 "Affiliation": affiliation,
                 "ASJC": asjc,
-                "Author Type": author_type
+                "Author Type": author_type,
             })
 
     author_df = pd.DataFrame(author_rows)
@@ -265,20 +278,28 @@ def section_author_analysis(df_export_with_asjc):
         author_df.groupby("Author ID")
         .agg({
             "Author Name": lambda x: "; ".join(sorted(set(x))),
+            "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
             "Affiliation": lambda x: "; ".join(sorted(set(x))),
         })
         .reset_index()
     )
 
-    st.write("Unique authors (grouped by Scopus Author ID):")
+    st.write("Unique authors with all name and affiliation variations (grouped by Scopus Author ID):")
     st.dataframe(author_info)
 
-    # Join the grouped info back for analysis
+    # Merge back for analysis
     author_df = author_df.merge(author_info, on="Author ID", suffixes=("", "_All"))
 
-    # ---- Aggregate: How many papers per author ID per ASJC and author type ----
+    # Aggregate: papers per author ID, all name/affil variants, ASJC, and author type
     summary = (
-        author_df.groupby(["Author ID", "Author Name_All", "Affiliation_All", "ASJC", "Author Type"])
+        author_df.groupby([
+            "Author ID",
+            "Author Name_All",
+            "Author Name (from ID)_All",
+            "Affiliation_All",
+            "ASJC",
+            "Author Type",
+        ])
         .size()
         .reset_index(name="Paper Count")
         .sort_values(["Author ID", "ASJC"])
