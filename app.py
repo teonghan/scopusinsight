@@ -269,7 +269,6 @@ def section_author_asjc_summary(df_export_with_asjc):
 
         # Names in Correspondence Address (before first semicolon)
         corresponding_names_raw = correspondence_address.split(";", 1)[0]
-        # Might be several names: "S.K.K. Yuen; ..." (initials first format)
         corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
 
         n = min(len(names), len(ids_full), len(authors_with_affil))
@@ -282,9 +281,8 @@ def section_author_asjc_summary(df_export_with_asjc):
             affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
             author_type = "First Author" if i == 0 else "Co-author"
 
-            # Build both variants for matching
+            # Robust corresponding author detection
             variants = author_name_variants(name)
-            # Improved detection: if ANY variant matches a Correspondence Address name, mark as Corresponding
             if any(v in corresponding_names for v in variants):
                 author_type = "Corresponding Author"
 
@@ -299,21 +297,20 @@ def section_author_asjc_summary(df_export_with_asjc):
 
     author_df = pd.DataFrame(author_rows)
 
-    # --- Summary Table (retain this, as requested) ---
+    # --- Summary Table (grouped by Author ID, all variations) ---
     author_info = (
-    author_df.groupby("Author ID")
-    .agg({
-        "Author Name": lambda x: "; ".join(sorted(set(x))),
-        "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
-        "Affiliation": lambda x: "; ".join(sorted(set(x))),
-        "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
-        "Author Type": lambda x: "; ".join(sorted(set(x))),
-        "Author ID": "count"
-    })
-    .rename(columns={"Author ID": "Paper Count"})
-    .reset_index()
+        author_df.groupby("Author ID")
+        .agg({
+            "Author Name": lambda x: "; ".join(sorted(set(x))),
+            "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
+            "Affiliation": lambda x: "; ".join(sorted(set(x))),
+            "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
+            "Author Type": lambda x: "; ".join(sorted(set(x))),
+            "Author ID": "count"
+        })
+        .rename(columns={"Author ID": "Paper Count"})
+        .reset_index()
     )
-
     author_info = author_info[[
         "Author ID",
         "Author Name",
@@ -332,15 +329,26 @@ def section_author_asjc_summary(df_export_with_asjc):
         file_name="author_summary_by_id.csv"
     )
 
-    # --- (Optional) Detailed Table, one row per Author-ASJC-Type ---
-    # Uncomment this block if you want the long-form detail as well
+    # --- Detailed Table (Each Author-ASJC-Type combination, but includes name variants) ---
     summary = (
-        author_df.groupby(["Author ID", "Author Name", "Affiliation", "ASJC", "Author Type"])
+        author_df.groupby(["Author ID", "Affiliation", "ASJC", "Author Type"])
         .size()
         .reset_index(name="Paper Count")
         .sort_values(["Author ID", "ASJC"])
     )
-    st.write("**Detailed Table:** (Each Author-ASJC-Type combination)")
+    # Merge name variants from summary for each Author ID
+    summary = summary.merge(
+        author_info[["Author ID", "Author Name", "Author Name (from ID)"]],
+        on="Author ID",
+        how="left"
+    )
+    # Reorder columns
+    summary = summary[[
+        "Author ID", "Author Name", "Author Name (from ID)",
+        "Affiliation", "ASJC", "Author Type", "Paper Count"
+    ]]
+
+    st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
     st.dataframe(summary)
     st.download_button(
         "Download Detailed Author-ASJC-Type Table as CSV",
