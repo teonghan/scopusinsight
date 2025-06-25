@@ -187,27 +187,34 @@ def add_asjc_to_export_csv(df_export, df_source, df_asjc):
     df_source["ISSN_clean"] = df_source["ISSN"].apply(clean_issn)
     df_source["EISSN_clean"] = df_source["EISSN"].apply(clean_issn)
 
-    # Clean ISSN in CSV
+    # Clean ISSN/EISSN in CSV (handle missing/nulls)
     df_export = df_export.copy()
     df_export["ISSN"] = df_export["ISSN"].apply(clean_issn)
+    if "EISSN" in df_export.columns:
+        df_export["EISSN"] = df_export["EISSN"].apply(clean_issn)
+    else:
+        df_export["EISSN"] = None
 
-    # Build maps
+    # Build lookup dicts
     issn_map = df_source.set_index('ISSN_clean')["All Science Journal Classification Codes (ASJC)"].to_dict()
     eissn_map = df_source.set_index('EISSN_clean')["All Science Journal Classification Codes (ASJC)"].to_dict()
 
-    # For each CSV ISSN: try ISSN match first, then EISSN match
     def get_asjc_codes(row):
         issn = row["ISSN"]
+        eissn = row["EISSN"]
         codes = None
-        if issn in issn_map and pd.notna(issn_map[issn]):
+        # Try ISSN if present
+        if issn and issn in issn_map and pd.notna(issn_map[issn]):
             codes = issn_map[issn]
-        elif issn in eissn_map and pd.notna(eissn_map[issn]):
-            codes = eissn_map[issn]
+        # If ISSN missing or not found, try EISSN (if present)
+        elif eissn and eissn in eissn_map and pd.notna(eissn_map[eissn]):
+            codes = eissn_map[eissn]
         if codes:
             codes_list = [int(code) for code in str(codes).replace(" ", "").replace(",", ";").split(";") if code.isdigit()]
             return codes_list
         else:
             return []
+
     df_export["Matched_ASJC"] = df_export.apply(get_asjc_codes, axis=1)
 
     # ASJC descriptions
@@ -216,6 +223,7 @@ def add_asjc_to_export_csv(df_export, df_source, df_asjc):
         lambda codes: [asjc_dict.get(code, str(code)) for code in codes]
     )
     return df_export
+
 
 def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.header("Map Export CSV to Scopus Source & ASJC")
