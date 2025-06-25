@@ -100,7 +100,7 @@ def section_journal_filter(df_source, df_asjc):
     asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
     all_asjc_codes = list(df_asjc["Code"])
 
-    select_all = st.checkbox("Select All ASJC Categories")
+    select_all = st.checkbox("Select All ASJC Categories", key="select_all_journal")
     if select_all:
         selected = st.multiselect(
             "Select ASJC Categories",
@@ -196,9 +196,6 @@ def add_asjc_to_export_csv(df_export, df_source, df_asjc):
 
 def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.header("Map Export CSV to Scopus Source & ASJC")
-    df_export_with_asjc = add_asjc_to_export_csv(df_export, df_source, df_asjc)
-
-    # Filtering by ASJC code
     all_codes = sorted(set(code for codes in df_export_with_asjc["Matched_ASJC"] for code in codes))
     asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
 
@@ -250,7 +247,6 @@ def section_author_analysis(df_export_with_asjc):
             # Corresponding author logic (example, adjust as needed)
             if corresponding and author in corresponding:
                 author_type = "Corresponding Author"
-            # If author is both first and corresponding, prioritize "Corresponding Author"
             author_rows.append({
                 "Author": author,
                 "ASJC": asjc,
@@ -258,9 +254,6 @@ def section_author_analysis(df_export_with_asjc):
             })
     # Build DataFrame
     author_df = pd.DataFrame(author_rows)
-
-    # If no explicit "Corresponding Author" info, just classify as First or Co-author
-    # You can also deduplicate as needed
 
     st.write("All unique authors and their roles (first, corresponding, co-author):")
     st.dataframe(author_df.head(20))
@@ -275,7 +268,6 @@ def section_author_analysis(df_export_with_asjc):
     st.write("Table: Paper count per author, per ASJC, and author type")
     st.dataframe(summary)
 
-    # Optional: Download as CSV
     st.download_button(
         "Download Author-ASJC-Type Table as CSV",
         data=summary.to_csv(index=False),
@@ -306,13 +298,13 @@ def main():
             accept_multiple_files=True,
             key="csv_upload"
         )
+
         if csv_files:
             df_export, csv_error = read_and_merge_scopus_csv(csv_files)
             if csv_error:
                 st.sidebar.error(csv_error)
             else:
                 st.sidebar.success(f"Successfully merged {len(csv_files)} CSV files ({len(df_export)} rows).")
-                # Create the mapped CSV ONCE here!
                 df_export_with_asjc = add_asjc_to_export_csv(df_export, df_source, df_asjc)
     else:
         st.sidebar.info("Please upload the Scopus Source Excel first.")
