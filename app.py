@@ -231,77 +231,49 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
 
     st.dataframe(df_show)
 
-def section_author_analysis(df_export_with_asjc):
-    st.header("Author Analysis (Scopus ID-based, with ASJC & Author Type)")
+def section_author_asjc_summary(df_export_with_asjc):
+    st.header("Author × ASJC × Type Summary")
 
-    # Explode ASJC so each row is 1 paper, 1 author, 1 ASJC
     df_expanded = df_export_with_asjc.copy()
     df_expanded = df_expanded.explode("Matched_ASJC_Description")
 
-    author_rows = []
-
+    rows = []
     for idx, row in df_expanded.iterrows():
         names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
         ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
         authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
         asjc = row.get("Matched_ASJC_Description", None)
         corresponding = row.get("Corresponding Author", None)
-
         n = min(len(names), len(ids_full), len(authors_with_affil))
         for i in range(n):
             name = names[i]
             id_full = ids_full[i]
             author_id = extract_id(id_full)
-            name_variant = extract_name(id_full)
             split_affil = authors_with_affil[i].split(",", 1)
             affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
             author_type = "First Author" if i == 0 else "Co-author"
             if corresponding and name in corresponding:
-                author_type = "Correspondence Address"
-            author_rows.append({
+                author_type = "Corresponding Author"
+            rows.append({
                 "Author ID": author_id,
                 "Author Name": name,
-                "Author Name (from ID)": name_variant,
                 "Affiliation": affiliation,
                 "ASJC": asjc,
                 "Author Type": author_type
             })
-
-    author_df = pd.DataFrame(author_rows)
-
-    # Group by Author ID: collect name/affil/asjc/author type (all unique), and count appearances
-    author_info = (
-        author_df.groupby("Author ID")
-        .agg({
-            "Author Name": lambda x: "; ".join(sorted(set(x))),
-            "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
-            "Affiliation": lambda x: "; ".join(sorted(set(x))),
-            "ASJC": lambda x: "; ".join(sorted(set(filter(None, x)))),  # Remove Nones
-            "Author Type": lambda x: "; ".join(sorted(set(x))),
-            "Author ID": "count"
-        })
-        .rename(columns={"Author ID": "Paper Count"})
-        .reset_index()
+    df_summary = pd.DataFrame(rows)
+    # Count number of papers for each (Author, ASJC, Type)
+    summary = (
+        df_summary.groupby(["Author ID", "Author Name", "Affiliation", "ASJC", "Author Type"])
+        .size()
+        .reset_index(name="Paper Count")
+        .sort_values(["Author ID", "ASJC"])
     )
-
-    # Rearrange columns
-    author_info = author_info[[
-        "Author ID",
-        "Author Name",
-        "Author Name (from ID)",
-        "Affiliation",
-        "ASJC",
-        "Author Type",
-        "Paper Count"
-    ]]
-
-    st.write("Unique authors with all name and affiliation variations, ASJC categories, author types, and paper count (grouped by Scopus Author ID):")
-    st.dataframe(author_info)
-
+    st.dataframe(summary)
     st.download_button(
-        "Download Author Summary Table as CSV",
-        data=author_info.to_csv(index=False),
-        file_name="author_summary_by_id.csv"
+        "Download Author-ASJC-Type Table as CSV",
+        data=summary.to_csv(index=False),
+        file_name="author_asjc_type_summary.csv"
     )
 
 # ===================
