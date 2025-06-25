@@ -454,7 +454,7 @@ def main():
         if df_export_with_asjc is not None:
             section_map_export_csv(df_export_with_asjc, df_asjc)
             section_author_asjc_summary(df_export_with_asjc)  # <-- use correct function name!
-            section_author_dashboard(author_df)
+            section_author_dashboard(df_export_with_asjc)
 
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
