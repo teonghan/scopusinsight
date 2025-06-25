@@ -301,18 +301,19 @@ def section_author_asjc_summary(df_export_with_asjc):
 
     # --- Summary Table (retain this, as requested) ---
     author_info = (
-        author_df.groupby("Author ID")
-        .agg({
-            "Author Name": lambda x: "; ".join(sorted(set(x))),
-            "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
-            "Affiliation": lambda x: "; ".join(sorted(set(x))),
-            "ASJC": lambda x: "; ".join(sorted(set(filter(None, x)))),
-            "Author Type": lambda x: "; ".join(sorted(set(x))),
-            "Author ID": "count"
-        })
-        .rename(columns={"Author ID": "Paper Count"})
-        .reset_index()
+    author_df.groupby("Author ID")
+    .agg({
+        "Author Name": lambda x: "; ".join(sorted(set(x))),
+        "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
+        "Affiliation": lambda x: "; ".join(sorted(set(x))),
+        "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
+        "Author Type": lambda x: "; ".join(sorted(set(x))),
+        "Author ID": "count"
+    })
+    .rename(columns={"Author ID": "Paper Count"})
+    .reset_index()
     )
+
     author_info = author_info[[
         "Author ID",
         "Author Name",
