@@ -232,9 +232,8 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.dataframe(df_show)
 
 def section_author_asjc_summary(df_export_with_asjc):
-    st.header("Author Analysis Summary")
+    st.header("Author Analysis Summary (with Corresponding Author detection)")
 
-    # --- Prepare and explode ---
     df_expanded = df_export_with_asjc.copy()
     df_expanded = df_expanded.explode("Matched_ASJC_Description")
 
@@ -243,8 +242,14 @@ def section_author_asjc_summary(df_export_with_asjc):
         names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
         ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
         authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
+        correspondence_address = str(row.get("Correspondence Address", ""))
         asjc = row.get("Matched_ASJC_Description", None)
-        corresponding = row.get("Corresponding Author", None)
+
+        # Parse corresponding author(s): names before first semicolon
+        corresponding_names_raw = correspondence_address.split(";", 1)[0]
+        # If multiple names: "Yuen S.K.K.; Smith J." etc.
+        corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
+
         n = min(len(names), len(ids_full), len(authors_with_affil))
         for i in range(n):
             name = names[i]
@@ -254,8 +259,11 @@ def section_author_asjc_summary(df_export_with_asjc):
             split_affil = authors_with_affil[i].split(",", 1)
             affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
             author_type = "First Author" if i == 0 else "Co-author"
-            if corresponding and name in corresponding:
+
+            # Improved corresponding author logic
+            if any(name == corr for corr in corresponding_names):
                 author_type = "Corresponding Author"
+
             author_rows.append({
                 "Author ID": author_id,
                 "Author Name": name,
@@ -264,6 +272,7 @@ def section_author_asjc_summary(df_export_with_asjc):
                 "ASJC": asjc,
                 "Author Type": author_type
             })
+
     author_df = pd.DataFrame(author_rows)
 
     # --- Summary Table (retain this, as requested) ---
