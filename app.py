@@ -256,7 +256,7 @@ def section_author_analysis(df_export_with_asjc):
     author_df = pd.DataFrame(author_rows)
 
     st.write("All unique authors and their roles (first, corresponding, co-author):")
-    st.dataframe(author_df.head(20))
+    st.dataframe(author_df)
 
     # ---- Aggregate: How many papers per author per ASJC and author type ----
     summary = (
