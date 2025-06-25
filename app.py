@@ -232,7 +232,7 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.dataframe(df_show)
 
 def section_author_analysis(df_export_with_asjc):
-    st.header("Author Analysis (by Scopus Author ID, name, affiliation variations)")
+    st.header("Author Analysis (Scopus ID-based, with ASJC & Author Type)")
 
     # Explode ASJC so each row is 1 paper, 1 author, 1 ASJC
     df_expanded = df_export_with_asjc.copy()
@@ -241,7 +241,6 @@ def section_author_analysis(df_export_with_asjc):
     author_rows = []
 
     for idx, row in df_expanded.iterrows():
-        # All splits positional!
         names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
         ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
         authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
@@ -256,61 +255,53 @@ def section_author_analysis(df_export_with_asjc):
             name_variant = extract_name(id_full)
             split_affil = authors_with_affil[i].split(",", 1)
             affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
-
-            # Author type logic
             author_type = "First Author" if i == 0 else "Co-author"
             if corresponding and name in corresponding:
-                author_type = "Corresponding Author"
-
+                author_type = "Correspondence Address"
             author_rows.append({
                 "Author ID": author_id,
                 "Author Name": name,
                 "Author Name (from ID)": name_variant,
                 "Affiliation": affiliation,
                 "ASJC": asjc,
-                "Author Type": author_type,
+                "Author Type": author_type
             })
 
     author_df = pd.DataFrame(author_rows)
 
-    # Group all names and affiliations by Author ID
+    # Group by Author ID: collect name/affil/asjc/author type (all unique), and count appearances
     author_info = (
         author_df.groupby("Author ID")
         .agg({
             "Author Name": lambda x: "; ".join(sorted(set(x))),
             "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
             "Affiliation": lambda x: "; ".join(sorted(set(x))),
+            "ASJC": lambda x: "; ".join(sorted(set(filter(None, x)))),  # Remove Nones
+            "Author Type": lambda x: "; ".join(sorted(set(x))),
+            "Author ID": "count"
         })
+        .rename(columns={"Author ID": "Paper Count"})
         .reset_index()
     )
 
-    st.write("Unique authors with all name and affiliation variations (grouped by Scopus Author ID):")
+    # Rearrange columns
+    author_info = author_info[[
+        "Author ID",
+        "Author Name",
+        "Author Name (from ID)",
+        "Affiliation",
+        "ASJC",
+        "Author Type",
+        "Paper Count"
+    ]]
+
+    st.write("Unique authors with all name and affiliation variations, ASJC categories, author types, and paper count (grouped by Scopus Author ID):")
     st.dataframe(author_info)
 
-    # Merge back for analysis
-    author_df = author_df.merge(author_info, on="Author ID", suffixes=("", "_All"))
-
-    # Aggregate: papers per author ID, all name/affil variants, ASJC, and author type
-    summary = (
-        author_df.groupby([
-            "Author ID",
-            "Author Name_All",
-            "Author Name (from ID)_All",
-            "Affiliation_All",
-            "ASJC",
-            "Author Type",
-        ])
-        .size()
-        .reset_index(name="Paper Count")
-        .sort_values(["Author ID", "ASJC"])
-    )
-    st.write("Table: Paper count per author (Scopus ID), all name variants, all affiliations, per ASJC, and author type")
-    st.dataframe(summary)
-
     st.download_button(
-        "Download Author-ASJC-Type Table as CSV",
-        data=summary.to_csv(index=False),
-        file_name="author_asjc_type_summary.csv"
+        "Download Author Summary Table as CSV",
+        data=author_info.to_csv(index=False),
+        file_name="author_summary_by_id.csv"
     )
 
 # ===================
