@@ -22,6 +22,17 @@ def author_name_variants(surname_first):
     initials = " ".join(parts[1:])  # 'S.K.K.'
     return {surname_first, f"{initials} {surname}".strip()}
 
+def unique_concatenate(x):
+    # Clean up: lowercase and strip, but keep original
+    seen = set()
+    result = []
+    for item in x:
+        cleaned = item.lower().strip()
+        if cleaned not in seen:
+            seen.add(cleaned)
+            result.append(item.strip())
+    return "; ".join(result)
+
 # ===============================
 # --- Data Loading and Helpers ---
 # ===============================
@@ -299,18 +310,19 @@ def section_author_asjc_summary(df_export_with_asjc):
 
     # --- Summary Table (grouped by Author ID, all variations) ---
     author_info = (
-        author_df.groupby("Author ID")
-        .agg({
-            "Author Name": lambda x: "; ".join(sorted(set(x))),
-            "Author Name (from ID)": lambda x: "; ".join(sorted(set(x))),
-            "Affiliation": lambda x: "; ".join(sorted(set(x))),
-            "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
-            "Author Type": lambda x: "; ".join(sorted(set(x))),
-            "Author ID": "count"
-        })
-        .rename(columns={"Author ID": "Paper Count"})
-        .reset_index()
+    author_df.groupby("Author ID")
+    .agg({
+        "Author Name": unique_concatenate,
+        "Author Name (from ID)": unique_concatenate,
+        "Affiliation": unique_concatenate,
+        "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
+        "Author Type": lambda x: "; ".join(sorted(set(x))),
+        "Author ID": "count"
+    })
+    .rename(columns={"Author ID": "Paper Count"})
+    .reset_index()
     )
+
     author_info = author_info[[
         "Author ID",
         "Author Name",
