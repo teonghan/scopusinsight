@@ -225,6 +225,63 @@ def section_map_export_csv(df_export, df_source, df_asjc):
 
     st.dataframe(df_show)
 
+def section_author_analysis(df_export_with_asjc):
+    st.header("Author Analysis")
+
+    # ---- Prepare data ----
+    # Explode ASJC so each row is 1 paper, 1 author, 1 ASJC
+    df_expanded = df_export_with_asjc.copy()
+    df_expanded = df_expanded.explode("Matched_ASJC_Description")
+
+    # Parse authors (assuming 'Authors' column is "Last F.; Name S.; ..." with '; ' separator)
+    author_rows = []
+    for idx, row in df_expanded.iterrows():
+        # Split authors
+        authors = [a.strip() for a in str(row.get("Authors", "")).split(";") if a.strip()]
+        asjc = row.get("Matched_ASJC_Description", None)
+        # If you have a "Corresponding Author" or "Correspondence Address" column, update this!
+        corresponding = row.get("Corresponding Author", None)
+        for i, author in enumerate(authors):
+            # Author type logic
+            if i == 0:
+                author_type = "First Author"
+            else:
+                author_type = "Co-author"
+            # Corresponding author logic (example, adjust as needed)
+            if corresponding and author in corresponding:
+                author_type = "Corresponding Author"
+            # If author is both first and corresponding, prioritize "Corresponding Author"
+            author_rows.append({
+                "Author": author,
+                "ASJC": asjc,
+                "Author Type": author_type
+            })
+    # Build DataFrame
+    author_df = pd.DataFrame(author_rows)
+
+    # If no explicit "Corresponding Author" info, just classify as First or Co-author
+    # You can also deduplicate as needed
+
+    st.write("All unique authors and their roles (first, corresponding, co-author):")
+    st.dataframe(author_df.head(20))
+
+    # ---- Aggregate: How many papers per author per ASJC and author type ----
+    summary = (
+        author_df.groupby(["Author", "ASJC", "Author Type"])
+        .size()
+        .reset_index(name="Paper Count")
+        .sort_values(["Author", "ASJC"])
+    )
+    st.write("Table: Paper count per author, per ASJC, and author type")
+    st.dataframe(summary)
+
+    # Optional: Download as CSV
+    st.download_button(
+        "Download Author-ASJC-Type Table as CSV",
+        data=summary.to_csv(index=False),
+        file_name="author_asjc_type_summary.csv"
+    )
+
 # ===================
 # --- Main App ------
 # ===================
@@ -274,6 +331,8 @@ def main():
     with tabs[1]:
         if df_export is not None and df_source is not None and df_asjc is not None:
             section_map_export_csv(df_export, df_source, df_asjc)
+            section_author_analysis(df_export_with_asjc)
+            
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
