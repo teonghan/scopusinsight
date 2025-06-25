@@ -82,8 +82,11 @@ def read_and_merge_scopus_csv(files):
     return merged_df, None
 
 def clean_issn(val):
-    if pd.isna(val): return None
-    val = str(val).replace("-", "").strip()
+    if pd.isna(val):
+        return None
+    val = str(val).strip().replace("-", "")
+    if val.upper() == "NULL" or val == "":
+        return None
     if not val.isdigit() or len(val) < 7:
         return None
     val = val.zfill(8)
