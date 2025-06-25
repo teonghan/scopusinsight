@@ -370,6 +370,45 @@ def section_author_asjc_summary(df_export_with_asjc):
         file_name="author_asjc_type_summary.csv"
     )
 
+def section_author_dashboard(author_df):
+    st.header("Author Dashboard")
+
+    # Step 1: Build Author Selection List
+    author_df["Author Selector"] = author_df["Author ID"] + " | " + author_df["Author Name (from ID)"]
+    unique_authors = author_df[["Author ID", "Author Name (from ID)", "Author Selector"]].drop_duplicates()
+    author_selector = st.selectbox(
+        "Select an Author",
+        options=unique_authors["Author Selector"].tolist(),
+        format_func=lambda x: x
+    )
+
+    # Step 2: Get the selected author info
+    if author_selector:
+        selected_id = author_selector.split(" | ")[0]
+        df_author = author_df[author_df["Author ID"] == selected_id]
+
+        # Step 3: Author Type Filtering
+        author_types = sorted(df_author["Author Type"].dropna().unique())
+        selected_types = st.multiselect(
+            "Filter by Author Type",
+            options=author_types,
+            default=author_types
+        )
+        filtered = df_author[df_author["Author Type"].isin(selected_types)]
+
+        # Step 4: Aggregate ASJC
+        top_asjc = (
+            filtered.groupby("ASJC")
+            .size()
+            .reset_index(name="Paper Count")
+            .sort_values("Paper Count", ascending=False)
+            .head(10)
+        )
+        st.subheader("Top 10 ASJC Categories (for this author, by author type selection)")
+        import plotly.express as px
+        fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
+        st.plotly_chart(fig, use_container_width=True)
+
 # ===================
 # --- Main App ------
 # ===================
@@ -415,6 +454,8 @@ def main():
         if df_export_with_asjc is not None:
             section_map_export_csv(df_export_with_asjc, df_asjc)
             section_author_asjc_summary(df_export_with_asjc)  # <-- use correct function name!
+            section_author_dashboard(author_df)
+
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
