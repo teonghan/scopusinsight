@@ -194,7 +194,7 @@ def add_asjc_to_export_csv(df_export, df_source, df_asjc):
     )
     return df_export
 
-def section_map_export_csv(df_export, df_source, df_asjc):
+def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.header("Map Export CSV to Scopus Source & ASJC")
     df_export_with_asjc = add_asjc_to_export_csv(df_export, df_source, df_asjc)
 
