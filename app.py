@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import re
 
+st.set_page_config(page_title="Scopus Analysis Toolkit", layout="wide", initial_sidebar_state="expanded")
+
 def extract_id(id_str):
     m = re.search(r'\((\d+)\)$', id_str)
     return m.group(1) if m else id_str.strip()
