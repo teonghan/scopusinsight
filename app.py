@@ -176,7 +176,7 @@ def build_author_df(df_export_with_asjc):
     return pd.DataFrame(author_rows)
     
 # --- Author Table Building (NEW) ---
-def build_author_df_from_source(df_source):
+def build_author_df_from_source(df_export_with_asjc):
     author_rows = []
     # Defensive: Some columns may be missing, handle gracefully
     df = df_source.copy()
@@ -478,12 +478,12 @@ def section_author_dashboard(author_df):
         fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
         st.plotly_chart(fig, use_container_width=True)
 
-def section_show_author_df_from_source(df_source):
+def section_show_author_df_from_source(df_export_with_asjc):
     """
     Streamlit section to build and display author_df from a Scopus source DataFrame.
     """
     st.header("Author-Paper-ASJC Table (from Source)")
-    df_authors = build_author_df_from_source(df_source)
+    df_authors = build_author_df_from_source(df_export_with_asjc)
     st.write("Table below shows one row per author, per paper, per ASJC, per year, per author type:")
     st.dataframe(df_authors, use_container_width=True)
 
@@ -529,8 +529,7 @@ def main():
             author_df = build_author_df(df_export_with_asjc)
             section_author_asjc_summary(author_df)
             section_author_dashboard(author_df)
-            if df_export is not None and df_source is not None and df_asjc is not None:
-                section_show_author_df_from_source(add_asjc_to_export_csv(df_export, df_source, df_asjc))
+            section_show_author_df_from_source(df_export_with_asjc)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
