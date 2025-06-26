@@ -174,6 +174,69 @@ def build_author_df(df_export_with_asjc):
                 "EID": row.get("EID", None)
             })
     return pd.DataFrame(author_rows)
+    
+# --- Author Table Building (NEW) ---
+def build_author_df_from_source(df_source):
+    author_rows = []
+    # Defensive: Some columns may be missing, handle gracefully
+    df = df_source.copy()
+    df = df.reset_index(drop=True)
+    
+    # Explode if there are multiple ASJC codes per paper
+    if "All Science Journal Classification Codes (ASJC)" in df.columns:
+        df["ASJC_list"] = (
+            df["All Science Journal Classification Codes (ASJC)"]
+            .astype(str)
+            .str.replace(" ", "")
+            .str.replace(",", ";")
+            .replace("nan", "")
+            .apply(lambda x: [int(code) for code in x.split(";") if code.isdigit()])
+        )
+        df = df.explode("ASJC_list").rename(columns={"ASJC_list": "ASJC"})
+    else:
+        df["ASJC"] = None
+
+    for idx, row in df.iterrows():
+        # Parse authors (short), author full names (with IDs), authors with affiliations
+        names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
+        ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
+        authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
+        correspondence_address = str(row.get("Correspondence Address", ""))
+        asjc = row.get("ASJC", None)
+        year = row.get("Year", None)
+        eid = row.get("EID", None)
+
+        # Corresponding Author (if desired, you can implement robust detection as before)
+        corresponding_names_raw = correspondence_address.split(";", 1)[0]
+        corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
+
+        n = min(len(names), len(ids_full), len(authors_with_affil))
+        for i in range(n):
+            name = names[i]
+            id_full = ids_full[i]
+            # You must define or import extract_id and extract_name from your utilities
+            author_id = extract_id(id_full)
+            name_variant = extract_name(id_full)
+            split_affil = authors_with_affil[i].split(",", 1)
+            affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
+            author_type = "First Author" if i == 0 else "Co-author"
+            # Add robust corresponding detection if needed:
+            variants = author_name_variants(name)
+            if any(v in corresponding_names for v in variants):
+                author_type = "Corresponding Author"
+
+            author_rows.append({
+                "Author ID": author_id,
+                "Author Name": name,
+                "Author Name (from ID)": name_variant,
+                "Affiliation": affiliation,
+                "ASJC": asjc,
+                "Author Type": author_type,
+                "Year": year,
+                "EID": eid
+            })
+
+    return pd.DataFrame(author_rows)
 
 # --- Journal Filter Section ---
 def filter_and_collect_matches_with_desc(df_source, selected_codes, asjc_dict):
