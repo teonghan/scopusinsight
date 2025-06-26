@@ -327,13 +327,13 @@ def section_author_asjc_summary(df_export_with_asjc):
     )
 
     author_info = author_info[[
-        "Author ID",
-        "Author Name",
-        "Author Name (from ID)",
-        "Affiliation",
-        "ASJC",
-        "Author Type",
-        "Paper Count"
+    "Author ID",
+    "Author Name",
+    "Author Name (from ID)",
+    "Affiliation",
+    "ASJC",
+    "Author Type",
+    "Unique Paper Count"
     ]]
 
     st.write("**Summary Table:** (All variations, grouped by Scopus Author ID)")
