@@ -375,7 +375,7 @@ def section_author_asjc_summary(author_df):
 def section_author_dashboard(author_df):
     st.header("Author Dashboard")
 
-    # Build canonical author_ref table inside this function
+    # Canonical author_ref
     author_ref = (
         author_df.groupby("Author ID")
         .agg({
@@ -386,7 +386,7 @@ def section_author_dashboard(author_df):
         .reset_index()
     )
 
-    # Use only the canonicalized author_ref for the dropdown
+    # Dropdown
     author_ref["Selector"] = author_ref["Author ID"] + " | " + author_ref["Author Name (from ID)"]
     selected = st.selectbox(
         "Select an Author",
@@ -404,16 +404,77 @@ def section_author_dashboard(author_df):
             default=author_types
         )
         filtered = df_author[df_author["Author Type"].isin(selected_types)]
-        top_asjc = (
-            filtered.groupby("ASJC")
-            .size()
-            .reset_index(name="Paper Count")
-            .sort_values("Paper Count", ascending=False)
-            .head(10)
+
+        # --- Get Year info ---
+        if "Year" not in filtered.columns:
+            # Try to infer year from Cover Date or similar
+            if "Cover Date" in filtered.columns:
+                filtered = filtered.copy()
+                filtered["Year"] = filtered["Cover Date"].astype(str).str[:4]
+            elif "Year" in filtered.columns:
+                filtered["Year"] = filtered["Year"]
+            else:
+                st.warning("No year/cover date info found for this dataset.")
+                return
+
+        filtered["Year"] = filtered["Year"].astype(str)
+
+        # --- Compute trend data ---
+        trend = (
+            filtered.groupby(["Year", "ASJC"])
+            .agg({"EID": lambda x: len(set(x))})
+            .reset_index()
+            .rename(columns={"EID": "Unique Paper Count"})
         )
-        st.subheader("Top 10 ASJC Categories (for this author, by author type selection)")
-        fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
+        # Get years as sorted list
+        all_years = sorted(trend["Year"].astype(str).unique())
+        current_year = datetime.datetime.now().year
+        last_n = 3
+        recent_years = [str(current_year - i) for i in range(last_n)][::-1]  # e.g. ['2023', '2024', '2025']
+
+        # --- Classification for each ASJC ---
+        summary_rows = []
+        for asjc in trend["ASJC"].unique():
+            trend_asjc = trend[trend["ASJC"] == asjc]
+            n_total = trend_asjc["Unique Paper Count"].sum()
+            n_recent = trend_asjc[trend_asjc["Year"].isin(recent_years)]["Unique Paper Count"].sum()
+            n_historic = trend_asjc[~trend_asjc["Year"].isin(recent_years)]["Unique Paper Count"].sum()
+
+            # Classification logic
+            if n_recent >= 2 and n_historic <= 1:
+                classification = "Emerging"
+            elif n_recent >= 1 and n_historic >= 1:
+                classification = "Established"
+            elif n_recent == 0 and n_historic > 0:
+                classification = "Declining"
+            else:
+                classification = "Low Activity"
+
+            summary_rows.append({
+                "ASJC": asjc,
+                "Total Papers": n_total,
+                f"Papers {recent_years[0]}-{recent_years[-1]}": n_recent,
+                "Pre-Recent Papers": n_historic,
+                "Classification": classification
+            })
+
+        summary_df = pd.DataFrame(summary_rows).sort_values("Total Papers", ascending=False)
+
+        # --- Show Top 10 ASJC as before ---
+        top_asjc = summary_df["ASJC"].tolist()[:10]
+        trend_display = trend[trend["ASJC"].isin(top_asjc)]
+
+        st.subheader("Top 10 ASJC Categories (trend and classification)")
+        fig = px.line(
+            trend_display,
+            x="Year", y="Unique Paper Count", color="ASJC", markers=True,
+            title="Publication Trends by ASJC for Selected Author"
+        )
         st.plotly_chart(fig, use_container_width=True)
+
+        st.write("**ASJC Category Summary (with Classification):**")
+        st.dataframe(summary_df.head(10))
+
 
 # --- Main App ---
 def main():
