@@ -409,30 +409,36 @@ def build_author_df(df_export_with_asjc):
 def section_author_dashboard(author_df):
     st.header("Author Dashboard")
 
-    # Step 1: Build Author Selection List
-    author_df["Author Selector"] = author_df["Author ID"] + " | " + author_df["Author Name (from ID)"]
-    unique_authors = author_df[["Author ID", "Author Name (from ID)", "Author Selector"]].drop_duplicates()
-    author_selector = st.selectbox(
+    # Build the list of unique authors using Author ID + main name variant
+    unique_authors_df = (
+        author_df[["Author ID", "Author Name (from ID)"]]
+        .drop_duplicates()
+        .sort_values(["Author Name (from ID)", "Author ID"])
+    )
+    # Use Author ID + Author Name as label
+    unique_authors_df["Selector"] = unique_authors_df["Author ID"] + " | " + unique_authors_df["Author Name (from ID)"]
+
+    selected = st.selectbox(
         "Select an Author",
-        options=unique_authors["Author Selector"].tolist(),
-        format_func=lambda x: x
+        options=unique_authors_df["Selector"].tolist(),
+        index=0
     )
 
-    # Step 2: Get the selected author info
-    if author_selector:
-        selected_id = author_selector.split(" | ")[0]
+    if selected:
+        selected_id = selected.split(" | ")[0]
         df_author = author_df[author_df["Author ID"] == selected_id]
 
-        # Step 3: Author Type Filtering
+        # Author type checkboxes (unique for this author)
         author_types = sorted(df_author["Author Type"].dropna().unique())
         selected_types = st.multiselect(
             "Filter by Author Type",
             options=author_types,
             default=author_types
         )
+
         filtered = df_author[df_author["Author Type"].isin(selected_types)]
 
-        # Step 4: Aggregate ASJC
+        # Top 10 ASJC for this author and author types
         top_asjc = (
             filtered.groupby("ASJC")
             .size()
@@ -440,8 +446,8 @@ def section_author_dashboard(author_df):
             .sort_values("Paper Count", ascending=False)
             .head(10)
         )
+
         st.subheader("Top 10 ASJC Categories (for this author, by author type selection)")
-        import plotly.express as px
         fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
         st.plotly_chart(fig, use_container_width=True)
 
