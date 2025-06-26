@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import re
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 # --- Streamlit Page Config ---
 st.set_page_config(
@@ -323,12 +324,10 @@ def section_author_asjc_summary(author_df):
     ]]
     st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
 
-    st.dataframe(
-        summary,
-        use_container_width=True,
-        hide_index=True,
-        filters=True  # <-- This enables Excel-like filter UI!
-    )
+    gb = GridOptionsBuilder.from_dataframe(summary)
+    gb.configure_default_column(filterable=True, sortable=True)
+    grid_options = gb.build()
+    AgGrid(summary, gridOptions=grid_options, enable_enterprise_modules=True)
 
     st.download_button(
         "Download Detailed Author-ASJC-Type Table as CSV",
