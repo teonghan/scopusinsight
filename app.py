@@ -320,9 +320,9 @@ def section_author_asjc_summary(df_export_with_asjc):
         "Affiliation": unique_concatenate,
         "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
         "Author Type": lambda x: "; ".join(sorted(set(x))),
-        "Author ID": "count"
+        "EID": lambda x: len(set(x))   # <-- unique paper count!
     })
-    .rename(columns={"Author ID": "Paper Count"})
+    .rename(columns={"EID": "Unique Paper Count"})
     .reset_index()
     )
 
