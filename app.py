@@ -306,7 +306,7 @@ def section_author_asjc_summary(author_df):
     grid_options = gb.build()
     
     AgGrid(
-        summary,
+        author_info,
         gridOptions=grid_options,
         enable_enterprise_modules=True,
         allow_unsafe_jscode=True,
