@@ -370,6 +370,42 @@ def section_author_asjc_summary(df_export_with_asjc):
         file_name="author_asjc_type_summary.csv"
     )
 
+def build_author_df(df_export_with_asjc):
+    author_rows = []
+    df_expanded = df_export_with_asjc.copy()
+    df_expanded = df_expanded.explode("Matched_ASJC_Description")
+    for idx, row in df_expanded.iterrows():
+        names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
+        ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
+        authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
+        correspondence_address = str(row.get("Correspondence Address", ""))
+        asjc = row.get("Matched_ASJC_Description", None)
+
+        corresponding_names_raw = correspondence_address.split(";", 1)[0]
+        corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
+
+        n = min(len(names), len(ids_full), len(authors_with_affil))
+        for i in range(n):
+            name = names[i]
+            id_full = ids_full[i]
+            author_id = extract_id(id_full)
+            name_variant = extract_name(id_full)
+            split_affil = authors_with_affil[i].split(",", 1)
+            affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
+            author_type = "First Author" if i == 0 else "Co-author"
+            variants = author_name_variants(name)
+            if any(v in corresponding_names for v in variants):
+                author_type = "Corresponding Author"
+            author_rows.append({
+                "Author ID": author_id,
+                "Author Name": name,
+                "Author Name (from ID)": name_variant,
+                "Affiliation": affiliation,
+                "ASJC": asjc,
+                "Author Type": author_type
+            })
+    return pd.DataFrame(author_rows)
+
 def section_author_dashboard(author_df):
     st.header("Author Dashboard")
 
@@ -454,7 +490,7 @@ def main():
         if df_export_with_asjc is not None:
             section_map_export_csv(df_export_with_asjc, df_asjc)
             section_author_asjc_summary(df_export_with_asjc)  # <-- use correct function name!
-            section_author_dashboard(df_export_with_asjc)
+            section_author_dashboard(build_author_df(df_export_with_asjc))
 
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
