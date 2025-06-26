@@ -322,7 +322,14 @@ def section_author_asjc_summary(author_df):
         "Affiliation", "ASJC", "Author Type", "Unique Paper Count"
     ]]
     st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
-    st.dataframe(summary)
+
+    st.dataframe(
+        summary,
+        use_container_width=True,
+        hide_index=True,
+        filters=True  # <-- This enables Excel-like filter UI!
+    )
+
     st.download_button(
         "Download Detailed Author-ASJC-Type Table as CSV",
         data=summary.to_csv(index=False),
