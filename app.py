@@ -284,11 +284,12 @@ def section_author_asjc_summary(author_df):
     )
     # --- Detailed Table (one row per Author-ASJC-Type, with unique paper count, with name variants) ---
     summary = (
-        author_df.groupby(["Author ID", "Affiliation", "ASJC", "Author Type"])
+        author_df.groupby(["Author ID", "ASJC", "Author Type"])
         .agg({
             "EID": lambda x: len(set(x)),
             "Author Name": unique_concatenate,
-            "Author Name (from ID)": unique_concatenate
+            "Author Name (from ID)": unique_concatenate,
+            "Affiliation": unique_concatenate
         })
         .reset_index()
         .sort_values(["Author ID", "ASJC"])
