@@ -324,10 +324,25 @@ def section_author_asjc_summary(author_df):
     ]]
     st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
 
+    # -------------------------------------------------------------------------
+    # Assume summary is your DataFrame, enable advanced filtering to the table
+    # -------------------------------------------------------------------------
     gb = GridOptionsBuilder.from_dataframe(summary)
     gb.configure_default_column(filterable=True, sortable=True)
+    
+    # (Optional) Force text columns to be filterable
+    for col in summary.columns:
+        gb.configure_column(col, filter=True, editable=False)
+    
     grid_options = gb.build()
-    AgGrid(summary, gridOptions=grid_options, enable_enterprise_modules=True)
+    
+    AgGrid(
+        summary,
+        gridOptions=grid_options,
+        enable_enterprise_modules=True,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=True
+    )
 
     st.download_button(
         "Download Detailed Author-ASJC-Type Table as CSV",
