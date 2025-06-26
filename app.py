@@ -292,7 +292,27 @@ def section_author_asjc_summary(author_df):
         "Affiliation", "ASJC", "Author Type", "Unique Paper Count"
     ]]
     st.write("**Summary Table:** (All variations, grouped by Scopus Author ID)")
-    st.dataframe(author_info)
+
+    # -------------------------------------------------------------------------
+    # Assume author_info is your DataFrame, enable advanced filtering to the table
+    # -------------------------------------------------------------------------
+    gb = GridOptionsBuilder.from_dataframe(author_info)
+    gb.configure_default_column(filterable=True, sortable=True)
+    
+    # (Optional) Force text columns to be filterable
+    for col in summary.columns:
+        gb.configure_column(col, filter=True, editable=False)
+    
+    grid_options = gb.build()
+    
+    AgGrid(
+        summary,
+        gridOptions=grid_options,
+        enable_enterprise_modules=True,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=True
+    )
+    
     st.download_button(
         "Download Author Summary Table as CSV",
         data=author_info.to_csv(index=False),
