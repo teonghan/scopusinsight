@@ -333,17 +333,26 @@ def section_author_asjc_summary(author_df):
 # --- Author Dashboard ---
 def section_author_dashboard(author_df):
     st.header("Author Dashboard")
-    unique_authors_df = (
-        author_df[["Author ID", "Author Name (from ID)"]]
-        .drop_duplicates()
-        .sort_values(["Author Name (from ID)", "Author ID"])
+
+    # Build canonical author_ref table inside this function
+    author_ref = (
+        author_df.groupby("Author ID")
+        .agg({
+            "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0]
+        })
+        .reset_index()
     )
-    unique_authors_df["Selector"] = unique_authors_df["Author ID"] + " | " + unique_authors_df["Author Name (from ID)"]
+
+    # Use only the canonicalized author_ref for the dropdown
+    author_ref["Selector"] = author_ref["Author ID"] + " | " + author_ref["Author Name (from ID)"]
     selected = st.selectbox(
         "Select an Author",
-        options=unique_authors_df["Selector"].tolist(),
+        options=author_ref["Selector"].tolist(),
         index=0
     )
+
     if selected:
         selected_id = selected.split(" | ")[0]
         df_author = author_df[author_df["Author ID"] == selected_id]
