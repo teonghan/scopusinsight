@@ -348,10 +348,16 @@ def section_author_asjc_summary(df_export_with_asjc):
     # --- Detailed Table (Each Author-ASJC-Type combination, but includes name variants) ---
     summary = (
         author_df.groupby(["Author ID", "Affiliation", "ASJC", "Author Type"])
-        .size()
-        .reset_index(name="Paper Count")
+        .agg({
+            "EID": lambda x: len(set(x)),
+            "Author Name": unique_concatenate,
+            "Author Name (from ID)": unique_concatenate
+        })
+        .reset_index()
         .sort_values(["Author ID", "ASJC"])
+        .rename(columns={"EID": "Unique Paper Count"})
     )
+
     # Merge name variants from summary for each Author ID
     summary = summary.merge(
         author_info[["Author ID", "Author Name", "Author Name (from ID)"]],
