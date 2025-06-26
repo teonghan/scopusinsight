@@ -347,7 +347,7 @@ def section_author_asjc_summary(df_export_with_asjc):
 
     # --- Detailed Table (Each Author-ASJC-Type combination, but includes name variants) ---
     summary = (
-        author_df.groupby(["Author ID", "Affiliation", "ASJC", "Author Type"])
+    author_df.groupby(["Author ID", "Affiliation", "ASJC", "Author Type"])
         .agg({
             "EID": lambda x: len(set(x)),
             "Author Name": unique_concatenate,
@@ -357,7 +357,7 @@ def section_author_asjc_summary(df_export_with_asjc):
         .sort_values(["Author ID", "ASJC"])
         .rename(columns={"EID": "Unique Paper Count"})
     )
-
+    
     # Merge name variants from summary for each Author ID
     summary = summary.merge(
         author_info[["Author ID", "Author Name", "Author Name (from ID)"]],
@@ -367,7 +367,7 @@ def section_author_asjc_summary(df_export_with_asjc):
     # Reorder columns
     summary = summary[[
         "Author ID", "Author Name", "Author Name (from ID)",
-        "Affiliation", "ASJC", "Author Type", "Paper Count"
+        "Affiliation", "ASJC", "Author Type", "Unique Paper Count"
     ]]
 
     st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
