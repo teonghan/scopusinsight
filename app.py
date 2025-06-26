@@ -487,7 +487,7 @@ def main():
     else:
         st.sidebar.info("Please upload the Scopus Source Excel first.")
 
-    tabs = st.tabs(["Journal Filter", "Map Export CSV"])
+    tabs = st.tabs(["Journal Filter", "Author Analysis"])
     with tabs[0]:
         if df_source is not None and df_asjc is not None:
             section_journal_filter(df_source, df_asjc)
