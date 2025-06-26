@@ -300,7 +300,7 @@ def section_author_asjc_summary(author_df):
     gb.configure_default_column(filterable=True, sortable=True)
     
     # (Optional) Force text columns to be filterable
-    for col in summary.columns:
+    for col in author_info.columns:
         gb.configure_column(col, filter=True, editable=False)
     
     grid_options = gb.build()
