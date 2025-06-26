@@ -306,7 +306,8 @@ def section_author_asjc_summary(df_export_with_asjc):
                 "Author Name (from ID)": name_variant,
                 "Affiliation": affiliation,
                 "ASJC": asjc,
-                "Author Type": author_type
+                "Author Type": author_type,
+                "EID": row.get("EID", None)   # <-- Fix here
             })
 
     author_df = pd.DataFrame(author_rows)
