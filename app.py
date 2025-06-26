@@ -257,13 +257,28 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
 # --- Author Summary and Detailed Table Section ---
 def section_author_asjc_summary(author_df):
     st.header("Author Analysis Summary (with robust Corresponding Author detection)")
+
+    # Build canonical reference
+    author_ref = (
+        author_df.groupby("Author ID")
+        .agg({
+            "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0]
+        })
+        .reset_index()
+    )
+    # Merge back
+    author_df = author_df.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors='ignore')
+    author_df = author_df.merge(author_ref, on="Author ID", how="left")
+    
     # --- Summary Table (grouped by Author ID, all variations, unique paper count) ---
     author_info = (
         author_df.groupby("Author ID")
         .agg({
-            "Author Name": unique_concatenate,
-            "Author Name (from ID)": unique_concatenate,
-            "Affiliation": unique_concatenate,
+            "Author Name": "first",
+            "Author Name (from ID)": "first",
+            "Affiliation": "first",
             "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
             "Author Type": lambda x: "; ".join(sorted(set(x))),
             "EID": lambda x: len(set(x))
