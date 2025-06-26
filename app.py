@@ -100,7 +100,8 @@ def clean_issn(val):
     val = str(val).strip().replace("-", "")
     if val.upper() == "NULL" or val == "":
         return None
-    if not val.isdigit() or len(val) < 7:
+    # Allow ISSN to have 'X' as the last character
+    if not (val[:-1].isdigit() and (val[-1].isdigit() or val[-1].upper() == "X")):
         return None
     val = val.zfill(8)
     return val[:4] + '-' + val[4:]
