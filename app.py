@@ -133,7 +133,7 @@ def filter_and_collect_matches_with_desc(df_source, selected_codes, asjc_dict):
     return df_filtered[display_cols]
 
 def section_journal_filter(df_source, df_asjc):
-    st.header("Journal Filter Section")
+    st.header("Journal Insights")
     asjc_dict = dict(zip(df_asjc["Code"], df_asjc["Description"]))
     all_asjc_codes = list(df_asjc["Code"])
 
@@ -487,7 +487,7 @@ def main():
     else:
         st.sidebar.info("Please upload the Scopus Source Excel first.")
 
-    tabs = st.tabs(["Journal Filter", "Author Analysis"])
+    tabs = st.tabs(["Journal Insights", "Author Insights"])
     with tabs[0]:
         if df_source is not None and df_asjc is not None:
             section_journal_filter(df_source, df_asjc)
