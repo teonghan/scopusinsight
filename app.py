@@ -179,7 +179,7 @@ def build_author_df(df_export_with_asjc):
 def build_author_df_from_source(df_export_with_asjc):
     author_rows = []
     # Defensive: Some columns may be missing, handle gracefully
-    df = df_source.copy()
+    df = df_export_with_asjc.copy()
     df = df.reset_index(drop=True)
     
     # Explode if there are multiple ASJC codes per paper
