@@ -529,7 +529,8 @@ def main():
             author_df = build_author_df(df_export_with_asjc)
             section_author_asjc_summary(author_df)
             section_author_dashboard(author_df)
-            section_show_author_df_from_source(section_map_export_csv(df_export_with_asjc, df_asjc))
+            if df_source is not None:
+                section_show_author_df_from_source(df_source)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
