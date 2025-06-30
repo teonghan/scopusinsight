@@ -57,19 +57,24 @@ def parse_asjc_list(asjc_str):
 
 def get_author_canonical_info(df):
     """
-    Given a dataframe with author rows, return a dataframe mapping Author ID
-    to canonical Author Name, Author Name (from ID), and Affiliation.
+    Given a dataframe with author rows, return a dataframe mapping Author ID to:
+    - unique Author Name (mode, or sorted first if no mode)
+    - Author Name (from ID): all unique variations, concatenated
+    - Affiliation: all unique variations, concatenated
 
-    Canonical value is: mode, or sorted unique if mode not available.
+    Returns dataframe with columns:
+    [Author ID, Author Name, Author Name (from ID), Affiliation]
     """
     if df.empty:
         return pd.DataFrame(columns=["Author ID", "Author Name", "Author Name (from ID)", "Affiliation"])
+    def concat_uniques(x):
+        return "; ".join(sorted(set(xx.strip() for xx in x if pd.notna(xx) and str(xx).strip() != "")))
     author_ref = (
         df.groupby("Author ID")
         .agg({
             "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Author Name (from ID)": concat_uniques,
+            "Affiliation": concat_uniques,
         })
         .reset_index()
     )
