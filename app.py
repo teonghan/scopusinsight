@@ -92,13 +92,13 @@ def quadrant_plot_total_vs_slope(table):
     # Assign quadrant label
     def quad(row):
         if row["Total"] >= total_cut and row["Slope"] >= slope_cut:
-            return "High Total, High Slope (Q1)"
+            return "(Q1) Established & Emerging"
         elif row["Total"] < total_cut and row["Slope"] >= slope_cut:
-            return "Low Total, High Slope (Q2)"
+            return "(Q2) Emerging"
         elif row["Total"] < total_cut and row["Slope"] < slope_cut:
-            return "Low Total, Low Slope (Q3)"
+            return "(Q3) Marginal/Other"
         else:
-            return "High Total, Low Slope (Q4)"
+            return "(Q4) Established but stable/declining"
     table["Quadrant"] = table.apply(quad, axis=1)
 
     fig = px.scatter(
@@ -106,6 +106,8 @@ def quadrant_plot_total_vs_slope(table):
         labels={"Total": "Total Publications", "Slope": "Annual Growth Slope"},
         title="Quadrant Analysis: Total vs. Slope"
     )
+    fig.update_traces(textposition='bottom center')
+    
     # Add threshold lines
     fig.add_vline(x=total_cut, line_dash="dash", line_color="gray")
     fig.add_hline(y=slope_cut, line_dash="dash", line_color="gray")
