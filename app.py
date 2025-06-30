@@ -474,12 +474,13 @@ def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, 
         st.info("No author data to summarize.")
         return df_authors, pd.DataFrame()
 
-def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3):
+def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3, max_year=None):
     """
     Displays a classification table for each ASJC: Total, Recent, Previous, Growth, Classification.
     df_summary: DataFrame with columns ['Year', 'ASJC', 'Unique_Paper_Count']
     asjc_name_map: dict mapping ASJC code to name (optional, else use ASJC code)
     n_recent_years: int, how many years to consider as 'recent'
+    max_year: int, last year to include (optional; if None, uses latest in data)
     """
     import numpy as np
 
@@ -490,6 +491,8 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
 
     df_summary = df_summary.copy()
     df_summary["Year"] = df_summary["Year"].astype(int)
+    if max_year is not None:
+        df_summary = df_summary[df_summary["Year"] <= max_year]
     years = sorted(df_summary["Year"].unique())
     if len(years) <= n_recent_years:
         st.warning("Not enough years to classify emerging/established fields.")
@@ -498,42 +501,36 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     recent_years = years[-n_recent_years:]
     pre_years = years[:-n_recent_years]
 
-    # Dynamic labels
     recent_label = f"Recent {n_recent_years}y ({min(recent_years)}–{max(recent_years)})"
     pre_label = f"Pre-{n_recent_years}y (<{min(recent_years)})"
 
     st.markdown(f"""
     - **{recent_label}**: Total papers in {', '.join(str(y) for y in recent_years)}
     - **{pre_label}**: Total papers before {min(recent_years)}
+    - **Max year considered:** {max_year if max_year else max(years)}
     """)
 
     recent = df_summary[df_summary["Year"].isin(recent_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
     pre = df_summary[df_summary["Year"].isin(pre_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
     total = df_summary.groupby("ASJC")["Unique_Paper_Count"].sum()
 
-    # Make main table
     table = pd.DataFrame({
         "Total": total,
         recent_label: recent,
         pre_label: pre
     }).fillna(0).astype(int)
 
-    # Growth calculation: handle /0
     table["Growth"] = np.where(
         table[pre_label] == 0,
-        np.where(table[recent_label] > 0, 1.0, 0.0),  # all growth if previously zero
+        np.where(table[recent_label] > 0, 1.0, 0.0),
         (table[recent_label] - table[pre_label]) / table[pre_label]
     )
-
-    # Format growth for display
     table["Growth"] = (table["Growth"] * 100).round().astype(int).astype(str) + "%"
 
-    # Classification
     def classify(row):
         pre = row[pre_label]
         recent = row[recent_label]
         growth = int(row["Growth"].replace("%", ""))
-        # Example rules (tweak as you wish)
         if pre <= 2 and recent >= 3 and growth >= 30:
             return "Emerging"
         elif pre >= 3 and recent >= 3 and growth > -30:
@@ -544,13 +541,9 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
             return ""
 
     table["Classification"] = table.apply(classify, axis=1)
-
-    # Add ASJC names
     table = table.reset_index()
     if asjc_name_map:
         table["ASJC"] = table["ASJC"].map(asjc_name_map).fillna(table["ASJC"])
-
-    # Reorder columns for display
     table = table[["ASJC", "Total", recent_label, pre_label, "Growth", "Classification"]]
 
     st.dataframe(table, use_container_width=True)
@@ -631,7 +624,21 @@ def main():
                 df_export_with_asjc, selected_author_id, selected_types
             )
             section_author_asjc_summary(filtered_author_df)
-            section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3)
+            
+            years = sorted(df_summary["Year"].unique())
+            default_max_year = max(years)
+            max_year = st.number_input(
+                "Max year to consider:",
+                min_value=min(years), max_value=max(years), value=default_max_year, step=1
+            )
+            n_recent_years = st.number_input(
+                "Number of recent years:", min_value=2, max_value=10, value=3, step=1
+            )
+            section_emerging_established_fields(
+                df_summary, asjc_name_map=asjc_name_map,
+                n_recent_years=n_recent_years, max_year=max_year
+            )
+            
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
