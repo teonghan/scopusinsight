@@ -217,7 +217,7 @@ def build_author_df_w_year(df_export_with_asjc):
         authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
         correspondence_address = str(row.get("Correspondence Address", ""))
         asjc = row.get("Matched_ASJC_Description", None)
-        year = row.get("Year", None)  # <------ ADD THIS LINE
+        year = row.get("Year", None)
         corresponding_names_raw = correspondence_address.split(";", 1)[0]
         corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
         n = min(len(names), len(ids_full), len(authors_with_affil))
