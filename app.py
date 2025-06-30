@@ -81,6 +81,37 @@ def get_author_canonical_info(df):
     )
     return author_ref
 
+def quadrant_plot_total_vs_slope(table):
+    # User inputs
+    col1, col2 = st.columns(2)
+    with col1:
+        total_cut = st.number_input("Total publication threshold (x-axis cut)", min_value=0, max_value=int(table['Total'].max()), value=int(table['Total'].median()), step=1)
+    with col2:
+        slope_cut = st.number_input("Slope threshold (y-axis cut)", min_value=float(table['Slope'].min()), max_value=float(table['Slope'].max()), value=0.0, step=0.1)
+
+    # Assign quadrant label
+    def quad(row):
+        if row["Total"] >= total_cut and row["Slope"] >= slope_cut:
+            return "High Total, High Slope (Q1)"
+        elif row["Total"] < total_cut and row["Slope"] >= slope_cut:
+            return "Low Total, High Slope (Q2)"
+        elif row["Total"] < total_cut and row["Slope"] < slope_cut:
+            return "Low Total, Low Slope (Q3)"
+        else:
+            return "High Total, Low Slope (Q4)"
+    table["Quadrant"] = table.apply(quad, axis=1)
+
+    fig = px.scatter(
+        table, x="Total", y="Slope", text="ASJC", color="Quadrant",
+        labels={"Total": "Total Publications", "Slope": "Annual Growth Slope"},
+        title="Quadrant Analysis: Total vs. Slope"
+    )
+    # Add threshold lines
+    fig.add_vline(x=total_cut, line_dash="dash", line_color="gray")
+    fig.add_hline(y=slope_cut, line_dash="dash", line_color="gray")
+    st.plotly_chart(fig, use_container_width=True)
+    st.dataframe(table)
+
 # ========================
 #     DATA LOADING
 # ========================
@@ -551,11 +582,11 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     return table
     
 def section_trend_slope_classification(
-    df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
+    df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None, slope_threshold_default=0.5
 ):
     """
     Interactive classification of fields by trend slope.
-    User can set minimum total output and Last Year considered.
+    User can set minimum total output, Last Year considered, and Slope threshold.
     """
     st.subheader("Trend Slope Classification Table")
 
@@ -563,14 +594,13 @@ def section_trend_slope_classification(
         st.info("No data available.")
         return
 
-    # Get year range from data
     all_years = sorted(df_summary["Year"].unique())
     min_year, max_year = min(all_years), max(all_years)
     if last_year_default is None:
         last_year_default = max_year
 
-    # --- UI controls: for min_total and last_year
-    col1, col2 = st.columns(2)
+    # --- UI controls: for min_total, last_year, and slope threshold
+    col1, col2, col3 = st.columns(3)
     with col1:
         min_total = st.number_input(
             "Minimum total publications to consider",
@@ -580,6 +610,11 @@ def section_trend_slope_classification(
         last_year = st.number_input(
             "Last year to include",
             min_value=min_year, max_value=max_year, value=last_year_default, step=1, key="last_year_slope"
+        )
+    with col3:
+        slope_threshold = st.number_input(
+            "Slope threshold for 'Emerging' (per year)",
+            min_value=-5.0, max_value=5.0, value=slope_threshold_default, step=0.1, key="slope_threshold"
         )
 
     # Filter data
@@ -613,24 +648,25 @@ def section_trend_slope_classification(
 
     # --- Classification logic
     def classify(row):
-        if row["Total"] >= min_total and row["Slope"] > 0.5:
+        if row["Total"] >= min_total and row["Slope"] > slope_threshold:
             return "Emerging"
-        elif row["Total"] >= min_total and -0.5 <= row["Slope"] <= 0.5:
+        elif row["Total"] >= min_total and -slope_threshold <= row["Slope"] <= slope_threshold:
             return "Established"
-        elif row["Total"] >= min_total and row["Slope"] < -0.5:
+        elif row["Total"] >= min_total and row["Slope"] < -slope_threshold:
             return "Declining"
         else:
             return "Other"
 
     table["Classification"] = table.apply(classify, axis=1)
 
-    # Add ASJC name if available
     if asjc_name_map:
         table["ASJC"] = table["ASJC"].map(asjc_name_map).fillna(table["ASJC"])
 
-    # Column order and display
     table = table[["ASJC", "Total", "First_Year", "Last_Year", "Slope", "R", "p-value", "Classification"]]
     st.dataframe(table, use_container_width=True)
+    
+    quadrant_plot_total_vs_slope(table)
+    
     return table
     
 # ===========================
