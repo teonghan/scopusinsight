@@ -270,6 +270,8 @@ def build_author_df_w_year(df_export_with_asjc):
         # Remove current possibly non-canonical values and merge canonical ones
         df_authors = df_authors.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors="ignore")
         df_authors = df_authors.merge(author_ref, on="Author ID", how="left")
+    desired_order = ["Author ID", "Author Name", "Affiliation", "Year", "ASJC", "Author Type", "EID"]
+    df_authors = df_authors[desired_order]
     return df_authors
 
 # ===========================
