@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import re
 from st_aggrid import AgGrid, GridOptionsBuilder
+from scipy.stats import linregress
 
 # ========================
 #     HELPER FUNCTIONS
@@ -548,7 +549,90 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
 
     st.dataframe(table, use_container_width=True)
     return table
+    
+def section_trend_slope_classification(
+    df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
+):
+    """
+    Interactive classification of fields by trend slope.
+    User can set minimum total output and Last Year considered.
+    """
+    st.subheader("Trend Slope Classification Table")
 
+    if df_summary.empty:
+        st.info("No data available.")
+        return
+
+    # Get year range from data
+    all_years = sorted(df_summary["Year"].unique())
+    min_year, max_year = min(all_years), max(all_years)
+    if last_year_default is None:
+        last_year_default = max_year
+
+    # --- UI controls: for min_total and last_year
+    col1, col2 = st.columns(2)
+    with col1:
+        min_total = st.number_input(
+            "Minimum total publications to consider",
+            min_value=1, max_value=100, value=min_total_default, step=1, key="min_total_slope"
+        )
+    with col2:
+        last_year = st.number_input(
+            "Last year to include",
+            min_value=min_year, max_value=max_year, value=last_year_default, step=1, key="last_year_slope"
+        )
+
+    # Filter data
+    filtered = df_summary[df_summary["Year"] <= last_year].copy()
+    if filtered.empty:
+        st.info("No data in selected year range.")
+        return
+
+    # --- Slope analysis per ASJC
+    records = []
+    for asjc, group in filtered.groupby("ASJC"):
+        group = group.sort_values("Year")
+        years = group["Year"].values
+        counts = group["Unique_Paper_Count"].values
+        total = counts.sum()
+        if len(years) > 1:
+            slope, _, r_value, p_value, _ = linregress(years, counts)
+        else:
+            slope, r_value, p_value = 0, 0, 1
+        records.append({
+            "ASJC": asjc,
+            "Total": int(total),
+            "First_Year": int(years[0]),
+            "Last_Year": int(years[-1]),
+            "Slope": round(slope, 2),
+            "R": round(r_value, 2),
+            "p-value": round(p_value, 3)
+        })
+
+    table = pd.DataFrame(records)
+
+    # --- Classification logic
+    def classify(row):
+        if row["Total"] >= min_total and row["Slope"] > 0.5:
+            return "Emerging"
+        elif row["Total"] >= min_total and -0.5 <= row["Slope"] <= 0.5:
+            return "Established"
+        elif row["Total"] >= min_total and row["Slope"] < -0.5:
+            return "Declining"
+        else:
+            return "Other"
+
+    table["Classification"] = table.apply(classify, axis=1)
+
+    # Add ASJC name if available
+    if asjc_name_map:
+        table["ASJC"] = table["ASJC"].map(asjc_name_map).fillna(table["ASJC"])
+
+    # Column order and display
+    table = table[["ASJC", "Total", "First_Year", "Last_Year", "Slope", "R", "p-value", "Classification"]]
+    st.dataframe(table, use_container_width=True)
+    return table
+    
 # ===========================
 #         MAIN APP
 # ===========================
@@ -637,6 +721,9 @@ def main():
             section_emerging_established_fields(
                 df_summary, asjc_name_map=None,
                 n_recent_years=n_recent_years, max_year=max_year
+            )
+            section_trend_slope_classification(
+                df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
             )
             
         else:
