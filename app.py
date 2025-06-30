@@ -199,6 +199,51 @@ def build_author_df(df_export_with_asjc):
             })
     return pd.DataFrame(author_rows)
 
+def build_author_df_w_year(df_export_with_asjc):
+    """
+    Build a DataFrame with one row per author, paper, ASJC, year, and author type.
+    For use with Scopus export CSV with mapped ASJC columns.
+    """
+    author_rows = []
+    df_expanded = df_export_with_asjc.copy()
+    # If needed, convert ASJC description string to list
+    if "Matched_ASJC_Description" in df_expanded.columns and isinstance(df_expanded["Matched_ASJC_Description"].iloc[0], str) and "[" in df_expanded["Matched_ASJC_Description"].iloc[0]:
+        import ast
+        df_expanded["Matched_ASJC_Description"] = df_expanded["Matched_ASJC_Description"].apply(lambda x: ast.literal_eval(x) if pd.notna(x) else [])
+    df_expanded = df_expanded.explode("Matched_ASJC_Description")
+    for idx, row in df_expanded.iterrows():
+        names = [x.strip() for x in str(row.get("Authors", "")).split(";")]
+        ids_full = [x.strip() for x in str(row.get("Author full names", "")).split(";")]
+        authors_with_affil = [x.strip() for x in str(row.get("Authors with affiliations", "")).split(";")]
+        correspondence_address = str(row.get("Correspondence Address", ""))
+        asjc = row.get("Matched_ASJC_Description", None)
+        year = row.get("Year", None)  # <------ ADD THIS LINE
+        corresponding_names_raw = correspondence_address.split(";", 1)[0]
+        corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
+        n = min(len(names), len(ids_full), len(authors_with_affil))
+        for i in range(n):
+            name = names[i]
+            id_full = ids_full[i]
+            author_id = extract_id(id_full)
+            name_variant = extract_name(id_full)
+            split_affil = authors_with_affil[i].split(",", 1)
+            affiliation = split_affil[1].strip() if len(split_affil) > 1 else ""
+            author_type = "First Author" if i == 0 else "Co-author"
+            variants = author_name_variants(name)
+            if any(v in corresponding_names for v in variants):
+                author_type = "Corresponding Author"
+            author_rows.append({
+                "Author ID": author_id,
+                "Author Name": name,
+                "Author Name (from ID)": name_variant,
+                "Affiliation": affiliation,
+                "ASJC": asjc,
+                "Author Type": author_type,
+                "EID": row.get("EID", None),
+                "Year": year
+            })
+    return pd.DataFrame(author_rows)
+
 # ===========================
 #       UI SECTIONS
 # ===========================
@@ -372,7 +417,7 @@ def section_author_dashboard(author_df):
 def section_show_author_df_from_source(df_export_with_asjc):
     """Show author-paper-ASJC table (one row per author, paper, ASJC, year, author type)."""
     st.header("Author-Paper-ASJC Table (from Source)")
-    df_authors = build_author_df(df_export_with_asjc)
+    df_authors = build_author_df_w_year(df_export_with_asjc)
     st.write("Table below shows one row per author, per paper, per ASJC, per author type:")
     st.dataframe(df_authors, use_container_width=True)
 
