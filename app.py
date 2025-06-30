@@ -615,15 +615,6 @@ def main():
     
             # Final filtered dataframe for display in all sections
             filtered_author_df = df_author[df_author["Author Type"].isin(selected_types)]
-
-            # Add this!
-            df_summary = (
-                filtered_author_df
-                .groupby(["Year", "ASJC"])
-                .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
-                .reset_index()
-            )
-            asjc_name_map = dict(zip(df_asjc["Code"], df_asjc["Description"]))
     
             # Pass to all dashboard sections
             section_author_dashboard(filtered_author_df)
