@@ -460,10 +460,12 @@ def section_author_dashboard(author_df):
         fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
         st.plotly_chart(fig, use_container_width=True)
 
-def section_show_author_df_from_source(df_export_with_asjc):
-    """Show author-paper-ASJC table (one row per author, paper, ASJC, year, author type)."""
+def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types):
+    """Show author-paper-ASJC table and summary, filtered by selected author and type."""
     st.subheader("Author-Paper-ASJC Table (from Source)")
     df_authors = build_author_df_w_year(df_export_with_asjc)
+    df_authors = df_authors[df_authors["Author ID"] == selected_author_id]
+    df_authors = df_authors[df_authors["Author Type"].isin(selected_types)]
     st.write("Table below shows one row per author, per paper, per ASJC, per author type:")
     st.dataframe(df_authors, use_container_width=True)
 
@@ -534,10 +536,31 @@ def main():
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
     with tabs[2]:
         if df_export_with_asjc is not None:
-            author_df = build_author_df(df_export_with_asjc)
-            section_author_asjc_summary(author_df)
-            section_author_dashboard(author_df)
-            section_show_author_df_from_source(df_export_with_asjc)
+            # Build author table (canonicalized)
+            author_df_full = build_author_df(df_export_with_asjc)
+            author_ref = get_author_canonical_info(author_df_full)
+            author_ref["Selector"] = author_ref["Author ID"] + " | " + author_ref["Author Name (from ID)"]
+    
+            # Select author
+            selected = st.selectbox("Select an Author", options=author_ref["Selector"].tolist(), index=0)
+            selected_author_id = selected.split(" | ")[0]
+    
+            # Filter for dashboard, detailed table, and summary
+            df_author = author_df_full[author_df_full["Author ID"] == selected_author_id]
+            author_types = sorted(df_author["Author Type"].dropna().unique())
+            selected_types = st.multiselect(
+                "Filter by Author Type",
+                options=author_types,
+                default=author_types
+            )
+    
+            # Final filtered dataframe for display in all sections
+            filtered_author_df = df_author[df_author["Author Type"].isin(selected_types)]
+    
+            # Pass to all dashboard sections
+            section_author_dashboard(filtered_author_df)
+            section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types)
+            section_author_asjc_summary(filtered_author_df)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
