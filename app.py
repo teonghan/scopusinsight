@@ -392,7 +392,7 @@ def section_author_asjc_summary(author_df):
     for col in author_info.columns:
         gb.configure_column(col, filter=True, editable=False)
     grid_options = gb.build()
-    AgGrid(author_info, gridOptions=grid_options, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True)
+    AgGrid(author_info, gridOptions=grid_options, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True, key="author_summary_grid")
     st.download_button("Download Author Summary Table as CSV", data=author_info.to_csv(index=False), file_name="author_summary_by_id.csv")
 
     # --- Detailed Table ---
@@ -422,7 +422,7 @@ def section_author_asjc_summary(author_df):
     for col in summary.columns:
         gb.configure_column(col, filter=True, editable=False)
     grid_options = gb.build()
-    AgGrid(summary, gridOptions=grid_options, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True)
+    AgGrid(summary, gridOptions=grid_options, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True, key="author_detailed_grid")
     st.download_button("Download Detailed Author-ASJC-Type Table as CSV", data=summary.to_csv(index=False), file_name="author_asjc_type_summary.csv")
     return author_df
 
