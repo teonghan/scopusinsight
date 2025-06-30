@@ -222,7 +222,15 @@ def build_author_df(df_export_with_asjc):
                 "Author Type": author_type,
                 "EID": row.get("EID", None)
             })
-    return pd.DataFrame(author_rows)
+            
+    df_authors = pd.DataFrame(author_rows)
+    
+    # --- CANONICALIZE Author fields ---
+    if not df_authors.empty:
+        author_ref = get_author_canonical_info(df_authors)
+        df_authors = df_authors.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors="ignore")
+        df_authors = df_authors.merge(author_ref, on="Author ID", how="left")
+    return df_authors
 
 def build_author_df_w_year(df_export_with_asjc):
     """
@@ -345,17 +353,26 @@ def section_map_export_csv(df_export_with_asjc, df_asjc):
     st.dataframe(df_show)
 
 def section_author_asjc_summary(author_df):
-    """Author summary table (by author ID) and detailed table (by ID/ASJC/type) with download."""
+    """
+    Author summary table (by author ID) and detailed table (by ID/ASJC/type) with download.
+    Uses canonicalization: 
+        - Author Name: most frequent value,
+        - Author Name (from ID): all unique variants concatenated,
+        - Affiliation: all unique variants concatenated.
+    """
     st.header("Author Analysis Summary (with robust Corresponding Author detection)")
+
     # Canonical reference table for each author ID
     author_ref = get_author_canonical_info(author_df)
+    # Replace columns in author_df with canonicalized ones
     author_df = author_df.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors='ignore')
     author_df = author_df.merge(author_ref, on="Author ID", how="left")
-    # --- Summary Table
+
+    # --- Summary Table ---
     author_info = (
         author_df.groupby("Author ID")
         .agg({
-            "Author Name": "first",
+            "Author Name": "first",  # already canonical
             "Author Name (from ID)": "first",
             "Affiliation": "first",
             "ASJC": lambda x: "; ".join(sorted(set(str(xx) for xx in x if pd.notna(xx) and str(xx).strip() != ""))),
@@ -370,7 +387,6 @@ def section_author_asjc_summary(author_df):
         "Affiliation", "ASJC", "Author Type", "Unique Paper Count"
     ]]
     st.write("**Summary Table:** (All variations, grouped by Scopus Author ID)")
-    # AgGrid for summary table
     gb = GridOptionsBuilder.from_dataframe(author_info)
     gb.configure_default_column(filterable=True, sortable=True)
     for col in author_info.columns:
@@ -378,14 +394,15 @@ def section_author_asjc_summary(author_df):
     grid_options = gb.build()
     AgGrid(author_info, gridOptions=grid_options, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True)
     st.download_button("Download Author Summary Table as CSV", data=author_info.to_csv(index=False), file_name="author_summary_by_id.csv")
-    # --- Detailed Table
+
+    # --- Detailed Table ---
     summary = (
         author_df.groupby(["Author ID", "ASJC", "Author Type"])
         .agg({
             "EID": lambda x: len(set(x)),
-            "Author Name": unique_concatenate,
-            "Author Name (from ID)": unique_concatenate,
-            "Affiliation": unique_concatenate
+            "Author Name": "first",
+            "Author Name (from ID)": "first",
+            "Affiliation": "first"
         })
         .reset_index()
         .sort_values(["Author ID", "ASJC"])
@@ -399,7 +416,7 @@ def section_author_asjc_summary(author_df):
         "Author ID", "Author Name", "Author Name (from ID)",
         "Affiliation", "ASJC", "Author Type", "Unique Paper Count"
     ]]
-    st.write("**Detailed Table:** (Each Author-ASJC-Type combination, with name variants)")
+    st.write("**Detailed Table:** (Each Author-ASJC-Type combination, canonicalized names/affiliations)")
     gb = GridOptionsBuilder.from_dataframe(summary)
     gb.configure_default_column(filterable=True, sortable=True)
     for col in summary.columns:
@@ -412,23 +429,25 @@ def section_author_asjc_summary(author_df):
 def section_author_dashboard(author_df):
     """Single-author dashboard with top ASJC categories bar chart (for author/type selection)."""
     st.header("Author Dashboard")
-    # Canonical reference table for dropdown
-    author_ref = (
-        author_df.groupby("Author ID")
-        .agg({
-            "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0]
-        })
-        .reset_index()
-    )
+
+    # Use canonical author info for dropdown
+    author_ref = get_author_canonical_info(author_df)
     author_ref["Selector"] = author_ref["Author ID"] + " | " + author_ref["Author Name (from ID)"]
-    selected = st.selectbox("Select an Author", options=author_ref["Selector"].tolist(), index=0)
+
+    selected = st.selectbox(
+        "Select an Author",
+        options=author_ref["Selector"].tolist(),
+        index=0
+    )
     if selected:
         selected_id = selected.split(" | ")[0]
         df_author = author_df[author_df["Author ID"] == selected_id]
         author_types = sorted(df_author["Author Type"].dropna().unique())
-        selected_types = st.multiselect("Filter by Author Type", options=author_types, default=author_types)
+        selected_types = st.multiselect(
+            "Filter by Author Type",
+            options=author_types,
+            default=author_types
+        )
         filtered = df_author[df_author["Author Type"].isin(selected_types)]
         top_asjc = (
             filtered.groupby("ASJC")
