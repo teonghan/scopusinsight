@@ -341,7 +341,7 @@ def section_author_asjc_summary(author_df):
     """Author summary table (by author ID) and detailed table (by ID/ASJC/type) with download."""
     st.header("Author Analysis Summary (with robust Corresponding Author detection)")
     # Canonical reference table for each author ID
-    author_ref = get_author_canonical_info(df_authors)
+    author_ref = get_author_canonical_info(author_df)
     author_df = author_df.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors='ignore')
     author_df = author_df.merge(author_ref, on="Author ID", how="left")
     # --- Summary Table
