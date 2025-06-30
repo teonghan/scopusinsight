@@ -426,40 +426,23 @@ def section_author_asjc_summary(author_df):
     st.download_button("Download Detailed Author-ASJC-Type Table as CSV", data=summary.to_csv(index=False), file_name="author_asjc_type_summary.csv")
     return author_df
 
-def section_author_dashboard(author_df):
-    """Single-author dashboard with top ASJC categories bar chart (for author/type selection)."""
+def section_author_dashboard(filtered_author_df):
+    """Single-author dashboard with top ASJC categories bar chart (for selected author and type)."""
     st.header("Author Dashboard")
-
-    # Use canonical author info for dropdown
-    author_ref = get_author_canonical_info(author_df)
-    author_ref["Selector"] = author_ref["Author ID"] + " | " + author_ref["Author Name (from ID)"]
-
-    selected = st.selectbox(
-        "Select an Author",
-        options=author_ref["Selector"].tolist(),
-        index=0
+    if filtered_author_df.empty:
+        st.info("No data for the selected author and type(s).")
+        return
+    top_asjc = (
+        filtered_author_df.groupby("ASJC")
+        .size()
+        .reset_index(name="Paper Count")
+        .sort_values("Paper Count", ascending=False)
+        .head(10)
     )
-    if selected:
-        selected_id = selected.split(" | ")[0]
-        df_author = author_df[author_df["Author ID"] == selected_id]
-        author_types = sorted(df_author["Author Type"].dropna().unique())
-        selected_types = st.multiselect(
-            "Filter by Author Type",
-            options=author_types,
-            default=author_types,
-            key="dashboard_author_type"
-        )
-        filtered = df_author[df_author["Author Type"].isin(selected_types)]
-        top_asjc = (
-            filtered.groupby("ASJC")
-            .size()
-            .reset_index(name="Paper Count")
-            .sort_values("Paper Count", ascending=False)
-            .head(10)
-        )
-        st.subheader("Top 10 ASJC Categories (for this author, by author type selection)")
-        fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
-        st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Top 10 ASJC Categories (for this author, by author type selection)")
+    fig = px.bar(top_asjc, x="ASJC", y="Paper Count", title="Top 10 ASJC Categories for Selected Author")
+    st.plotly_chart(fig, use_container_width=True)
+
 
 def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types):
     """Show author-paper-ASJC table and summary, filtered by selected author and type."""
