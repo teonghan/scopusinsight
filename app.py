@@ -462,7 +462,7 @@ def section_author_dashboard(author_df):
 
 def section_show_author_df_from_source(df_export_with_asjc):
     """Show author-paper-ASJC table (one row per author, paper, ASJC, year, author type)."""
-    st.header("Author-Paper-ASJC Table (from Source)")
+    st.subheader("Author-Paper-ASJC Table (from Source)")
     df_authors = build_author_df_w_year(df_export_with_asjc)
     st.write("Table below shows one row per author, per paper, per ASJC, per author type:")
     st.dataframe(df_authors, use_container_width=True)
