@@ -443,6 +443,26 @@ def section_show_author_df_from_source(df_export_with_asjc):
     st.write("Table below shows one row per author, per paper, per ASJC, per author type:")
     st.dataframe(df_authors, use_container_width=True)
 
+    # Group and summarize
+    st.subheader("Summary: Unique Paper Count by Year, ASJC, and Author Type")
+    if not df_authors.empty:
+        summary = (
+            df_authors
+            .groupby(["Year", "ASJC", "Author Type"])
+            .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
+            .reset_index()
+            .sort_values(["Year", "ASJC", "Author Type"])
+        )
+        st.dataframe(summary, use_container_width=True)
+        # Optionally add download button:
+        st.download_button(
+            "Download Summary as CSV",
+            data=summary.to_csv(index=False),
+            file_name="author_paper_asjc_summary.csv"
+        )
+    else:
+        st.info("No author data to summarize.")
+
 # ===========================
 #         MAIN APP
 # ===========================
