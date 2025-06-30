@@ -458,10 +458,9 @@ def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, 
     if not df_authors.empty:
         summary = (
             df_authors
-            .groupby(["Author ID", "Author Name", "Author Name (from ID)", "Affiliation", "Year", "ASJC", "Author Type"])
+            .groupby(["Year", "ASJC"])
             .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
             .reset_index()
-            .sort_values(["Year", "ASJC", "Author Type"])
         )
         st.dataframe(summary, use_container_width=True)
         # Optionally add download button:
@@ -470,8 +469,10 @@ def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, 
             data=summary.to_csv(index=False),
             file_name="author_paper_asjc_summary.csv"
         )
+        return df_authors, summary
     else:
         st.info("No author data to summarize.")
+        return df_authors, pd.DataFrame()
 
 def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3):
     """
@@ -626,7 +627,9 @@ def main():
     
             # Pass to all dashboard sections
             section_author_dashboard(filtered_author_df)
-            section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types)
+            df_authors_table, df_summary = section_show_author_df_from_source(
+                df_export_with_asjc, selected_author_id, selected_types
+            )
             section_author_asjc_summary(filtered_author_df)
             section_emerging_established_fields(filtered_author_df, asjc_name_map=None, n_recent_years=3)
         else:
