@@ -55,6 +55,26 @@ def parse_asjc_list(asjc_str):
     """Parse ASJC string to list of integer codes."""
     return [int(code) for code in str(asjc_str).replace(" ", "").replace(",", ";").split(";") if code.isdigit()]
 
+def get_author_canonical_info(df):
+    """
+    Given a dataframe with author rows, return a dataframe mapping Author ID
+    to canonical Author Name, Author Name (from ID), and Affiliation.
+
+    Canonical value is: mode, or sorted unique if mode not available.
+    """
+    if df.empty:
+        return pd.DataFrame(columns=["Author ID", "Author Name", "Author Name (from ID)", "Affiliation"])
+    author_ref = (
+        df.groupby("Author ID")
+        .agg({
+            "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
+        })
+        .reset_index()
+    )
+    return author_ref
+
 # ========================
 #     DATA LOADING
 # ========================
@@ -313,6 +333,8 @@ def section_author_asjc_summary(author_df):
     """Author summary table (by author ID) and detailed table (by ID/ASJC/type) with download."""
     st.header("Author Analysis Summary (with robust Corresponding Author detection)")
     # Canonical reference table for each author ID
+    author_ref = get_author_canonical_info(df_authors)
+    """
     author_ref = (
         author_df.groupby("Author ID")
         .agg({
@@ -322,6 +344,7 @@ def section_author_asjc_summary(author_df):
         })
         .reset_index()
     )
+    """
     author_df = author_df.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors='ignore')
     author_df = author_df.merge(author_ref, on="Author ID", how="left")
     # --- Summary Table
