@@ -446,7 +446,8 @@ def section_author_dashboard(author_df):
         selected_types = st.multiselect(
             "Filter by Author Type",
             options=author_types,
-            default=author_types
+            default=author_types,
+            key="dashboard_author_type"
         )
         filtered = df_author[df_author["Author Type"].isin(selected_types)]
         top_asjc = (
@@ -551,7 +552,8 @@ def main():
             selected_types = st.multiselect(
                 "Filter by Author Type",
                 options=author_types,
-                default=author_types
+                default=author_types,
+                key="source_author_type"
             )
     
             # Final filtered dataframe for display in all sections
