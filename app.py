@@ -262,7 +262,15 @@ def build_author_df_w_year(df_export_with_asjc):
                 "EID": row.get("EID", None),
                 "Year": year
             })
-    return pd.DataFrame(author_rows)
+    df_authors = pd.DataFrame(author_rows)
+    
+    # --- CANONICALIZE Author fields as in detailed table ---
+    if not df_authors.empty:
+        df_authors = get_author_canonical_info(df_authors)
+        # Remove current possibly non-canonical values and merge canonical ones
+        df_authors = df_authors.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors="ignore")
+        df_authors = df_authors.merge(author_ref, on="Author ID", how="left")
+    return df_authors
 
 # ===========================
 #       UI SECTIONS
@@ -334,17 +342,6 @@ def section_author_asjc_summary(author_df):
     st.header("Author Analysis Summary (with robust Corresponding Author detection)")
     # Canonical reference table for each author ID
     author_ref = get_author_canonical_info(df_authors)
-    """
-    author_ref = (
-        author_df.groupby("Author ID")
-        .agg({
-            "Author Name": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Author Name (from ID)": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0],
-            "Affiliation": lambda x: pd.Series.mode(x)[0] if not pd.Series(x).mode().empty else sorted(set(x))[0]
-        })
-        .reset_index()
-    )
-    """
     author_df = author_df.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors='ignore')
     author_df = author_df.merge(author_ref, on="Author ID", how="left")
     # --- Summary Table
