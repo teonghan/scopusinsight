@@ -498,6 +498,15 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     recent_years = years[-n_recent_years:]
     pre_years = years[:-n_recent_years]
 
+    # Dynamic labels
+    recent_label = f"Recent {n_recent_years}y ({min(recent_years)}–{max(recent_years)})"
+    pre_label = f"Pre-{n_recent_years}y (<{min(recent_years)})"
+
+    st.markdown(f"""
+    - **{recent_label}**: Total papers in {', '.join(str(y) for y in recent_years)}
+    - **{pre_label}**: Total papers before {min(recent_years)}
+    """)
+
     recent = df_summary[df_summary["Year"].isin(recent_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
     pre = df_summary[df_summary["Year"].isin(pre_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
     total = df_summary.groupby("ASJC")["Unique_Paper_Count"].sum()
@@ -505,15 +514,15 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     # Make main table
     table = pd.DataFrame({
         "Total": total,
-        f"Recent {n_recent_years}y": recent,
-        f"Pre-{n_recent_years}y": pre
+        recent_label: recent,
+        pre_label: pre
     }).fillna(0).astype(int)
 
     # Growth calculation: handle /0
     table["Growth"] = np.where(
-        table[f"Pre-{n_recent_years}y"] == 0,
-        np.where(table[f"Recent {n_recent_years}y"] > 0, 1.0, 0.0),  # all growth if previously zero
-        (table[f"Recent {n_recent_years}y"] - table[f"Pre-{n_recent_years}y"]) / table[f"Pre-{n_recent_years}y"]
+        table[pre_label] == 0,
+        np.where(table[recent_label] > 0, 1.0, 0.0),  # all growth if previously zero
+        (table[recent_label] - table[pre_label]) / table[pre_label]
     )
 
     # Format growth for display
@@ -521,10 +530,10 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
 
     # Classification
     def classify(row):
-        pre = row[f"Pre-{n_recent_years}y"]
-        recent = row[f"Recent {n_recent_years}y"]
+        pre = row[pre_label]
+        recent = row[recent_label]
         growth = int(row["Growth"].replace("%", ""))
-        # Example rules (tweak to your liking)
+        # Example rules (tweak as you wish)
         if pre <= 2 and recent >= 3 and growth >= 30:
             return "Emerging"
         elif pre >= 3 and recent >= 3 and growth > -30:
@@ -542,7 +551,7 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
         table["ASJC"] = table["ASJC"].map(asjc_name_map).fillna(table["ASJC"])
 
     # Reorder columns for display
-    table = table[["ASJC", "Total", f"Recent {n_recent_years}y", f"Pre-{n_recent_years}y", "Growth", "Classification"]]
+    table = table[["ASJC", "Total", recent_label, pre_label, "Growth", "Classification"]]
 
     st.dataframe(table, use_container_width=True)
     return table
