@@ -635,7 +635,7 @@ def main():
                 "Number of recent years:", min_value=2, max_value=10, value=3, step=1
             )
             section_emerging_established_fields(
-                df_summary, asjc_name_map=asjc_name_map,
+                df_summary, asjc_name_map=None,
                 n_recent_years=n_recent_years, max_year=max_year
             )
             
