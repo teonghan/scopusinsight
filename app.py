@@ -270,7 +270,7 @@ def build_author_df_w_year(df_export_with_asjc):
         # Remove current possibly non-canonical values and merge canonical ones
         df_authors = df_authors.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors="ignore")
         df_authors = df_authors.merge(author_ref, on="Author ID", how="left")
-    desired_order = ["Author ID", "Author Name", "Affiliation", "Year", "ASJC", "Author Type", "EID"]
+    desired_order = ["Author ID", "Author Name", "Author Name (from ID)", "Affiliation", "Year", "ASJC", "Author Type", "EID"]
     df_authors = df_authors[desired_order]
     return df_authors
 
@@ -448,7 +448,7 @@ def section_show_author_df_from_source(df_export_with_asjc):
     if not df_authors.empty:
         summary = (
             df_authors
-            .groupby(["Author ID", "Author Name", "Affiliation", "Year", "ASJC", "Author Type"])
+            .groupby(["Author ID", "Author Name", "Author Name (from ID)", "Affiliation", "Year", "ASJC", "Author Type"])
             .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
             .reset_index()
             .sort_values(["Year", "ASJC", "Author Type"])
