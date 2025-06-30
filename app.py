@@ -287,6 +287,79 @@ def build_author_df_w_year(df_export_with_asjc):
     df_authors = df_authors[desired_order]
     return df_authors
 
+def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3):
+    """
+    Displays a classification table for each ASJC: Total, Recent, Previous, Growth, Classification.
+    df_summary: DataFrame with columns ['Year', 'ASJC', 'Unique_Paper_Count']
+    asjc_name_map: dict mapping ASJC code to name (optional, else use ASJC code)
+    n_recent_years: int, how many years to consider as 'recent'
+    """
+    import numpy as np
+
+    st.subheader("Summary Table with Classification")
+    if df_summary.empty:
+        st.info("No data available.")
+        return
+
+    df_summary = df_summary.copy()
+    df_summary["Year"] = df_summary["Year"].astype(int)
+    years = sorted(df_summary["Year"].unique())
+    if len(years) <= n_recent_years:
+        st.warning("Not enough years to classify emerging/established fields.")
+        return
+
+    recent_years = years[-n_recent_years:]
+    pre_years = years[:-n_recent_years]
+
+    recent = df_summary[df_summary["Year"].isin(recent_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
+    pre = df_summary[df_summary["Year"].isin(pre_years)].groupby("ASJC")["Unique_Paper_Count"].sum()
+    total = df_summary.groupby("ASJC")["Unique_Paper_Count"].sum()
+
+    # Make main table
+    table = pd.DataFrame({
+        "Total": total,
+        f"Recent {n_recent_years}y": recent,
+        f"Pre-{n_recent_years}y": pre
+    }).fillna(0).astype(int)
+
+    # Growth calculation: handle /0
+    table["Growth"] = np.where(
+        table[f"Pre-{n_recent_years}y"] == 0,
+        np.where(table[f"Recent {n_recent_years}y"] > 0, 1.0, 0.0),  # all growth if previously zero
+        (table[f"Recent {n_recent_years}y"] - table[f"Pre-{n_recent_years}y"]) / table[f"Pre-{n_recent_years}y"]
+    )
+
+    # Format growth for display
+    table["Growth"] = (table["Growth"] * 100).round().astype(int).astype(str) + "%"
+
+    # Classification
+    def classify(row):
+        pre = row[f"Pre-{n_recent_years}y"]
+        recent = row[f"Recent {n_recent_years}y"]
+        growth = int(row["Growth"].replace("%", ""))
+        # Example rules (tweak to your liking)
+        if pre <= 2 and recent >= 3 and growth >= 30:
+            return "Emerging"
+        elif pre >= 3 and recent >= 3 and growth > -30:
+            return "Established"
+        elif pre > 0 and recent == 0:
+            return "Declining"
+        else:
+            return ""
+
+    table["Classification"] = table.apply(classify, axis=1)
+
+    # Add ASJC names
+    table = table.reset_index()
+    if asjc_name_map:
+        table["ASJC"] = table["ASJC"].map(asjc_name_map).fillna(table["ASJC"])
+
+    # Reorder columns for display
+    table = table[["ASJC", "Total", f"Recent {n_recent_years}y", f"Pre-{n_recent_years}y", "Growth", "Classification"]]
+
+    st.dataframe(table, use_container_width=True)
+    return table
+
 # ===========================
 #       UI SECTIONS
 # ===========================
@@ -546,6 +619,7 @@ def main():
             section_author_dashboard(filtered_author_df)
             section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types)
             section_author_asjc_summary(filtered_author_df)
+            section_emerging_established_fields(filtered_author_df, asjc_name_map=None, n_recent_years=3)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
