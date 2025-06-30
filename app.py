@@ -622,7 +622,7 @@ def main():
                 df_export_with_asjc, selected_author_id, selected_types
             )
             section_author_asjc_summary(filtered_author_df)
-            section_emerging_established_fields(filtered_author_df, asjc_name_map=None, n_recent_years=3)
+            section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent_years=3)
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
 
