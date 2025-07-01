@@ -82,6 +82,7 @@ def get_author_canonical_info(df):
     return author_ref
 
 def quadrant_plot_total_vs_slope(table):
+    st.subheader("Quadrant Analysis")
     # User inputs
     col1, col2 = st.columns(2)
     with col1:
@@ -518,13 +519,13 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     """
     import numpy as np
 
-    st.subheader("Summary Table with Classification")
     if df_summary.empty:
         st.info("No data available.")
         return
 
     df_summary = df_summary.copy()
     df_summary["Year"] = df_summary["Year"].astype(int)
+    
     if max_year is not None:
         df_summary = df_summary[df_summary["Year"] <= max_year]
     years = sorted(df_summary["Year"].unique())
@@ -749,6 +750,8 @@ def main():
             
             years = sorted(df_summary["Year"].unique())
             default_max_year = max(years)
+            
+            st.subheader("Summary Table with Classification")
             max_year = st.number_input(
                 "Max year to consider:",
                 min_value=min(years), max_value=max(years), value=default_max_year, step=1
