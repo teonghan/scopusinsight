@@ -785,7 +785,7 @@ def section_burst_detection_asjc(
         df_summary,
         recent_years=recent_years,
         gamma=gamma,
-        smooth_win=smooth_win,
+        smooth_win=1,
         burst_level_option=burst_level_option,
         min_years=min_years,
         min_papers=min_papers,
