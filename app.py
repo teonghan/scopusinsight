@@ -762,12 +762,6 @@ def section_trend_slope_classification(
 
 def section_burst_detection_asjc(
     df_summary,
-    recent_years=3,
-    gamma=1.0,
-    smooth_win=1,
-    burst_level_option="All nonzero burst levels",
-    min_years=3,
-    min_papers=2,
 ):
     st.subheader("Kleinberg’s Burst Detection")
     gamma = st.number_input("Burst penalty (`gamma`)", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
@@ -779,15 +773,27 @@ def section_burst_detection_asjc(
     )
     min_years = st.number_input("Minimum years of data per ASJC", min_value=2, max_value=10, value=3, step=1)
     min_papers = st.number_input("Minimum total papers per ASJC", min_value=1, max_value=50, value=2, step=1)
+    recent_years = st.number_input(
+        "How many recent years to consider?",
+        min_value=1,
+        max_value=10,
+        value=3,
+        step=1,
+    )
     
     burst_df = burst_detection_asjc(
         df_summary,
-        recent_years=3,
+        recent_years=recent_years,
         gamma=gamma,
         smooth_win=smooth_win,
         burst_level_option=burst_level_option,
         min_years=min_years,
         min_papers=min_papers,
+    )
+    st.dataframe(burst_df, use_container_width=True)
+    st.info(
+        "A field is flagged as 'Emerging' if a burst is detected in the most recent period. "
+        "Tune the parameters above for sensitivity."
     )
     return burst_df
 
@@ -887,12 +893,6 @@ def main():
             )
             section_burst_detection_asjc(
                 df_summary,
-                recent_years=3,
-                gamma=1.0,
-                smooth_win=1,
-                burst_level_option="All nonzero burst levels",
-                min_years=3,
-                min_papers=2,
             )
             
         else:
