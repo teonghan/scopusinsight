@@ -404,7 +404,7 @@ def section_author_asjc_summary(author_df):
         - Author Name (from ID): all unique variants concatenated,
         - Affiliation: all unique variants concatenated.
     """
-    st.header("Author Analysis Summary (with robust Corresponding Author detection)")
+    st.subheader("Author Analysis Summary (with robust Corresponding Author detection)")
 
     # Canonical reference table for each author ID
     author_ref = get_author_canonical_info(author_df)
