@@ -493,7 +493,7 @@ def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, 
     if not df_authors.empty:
         summary = (
             df_authors
-            .groupby(["Year", "ASJC"])
+            .groupby(["ASJC", "Author Type","Year", ])
             .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
             .reset_index()
         )
