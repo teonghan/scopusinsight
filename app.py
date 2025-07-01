@@ -5,6 +5,7 @@ import re
 from st_aggrid import AgGrid, GridOptionsBuilder
 from scipy.stats import linregress
 from burst_detection import burst_detection
+import numpy as np
 
 # ========================
 #     HELPER FUNCTIONS
@@ -605,7 +606,6 @@ def section_emerging_established_fields(df_summary, asjc_name_map=None, n_recent
     n_recent_years: int, how many years to consider as 'recent'
     max_year: int, last year to include (optional; if None, uses latest in data)
     """
-    import numpy as np
 
     if df_summary.empty:
         st.info("No data available.")
