@@ -892,7 +892,7 @@ def main():
                 df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
             )
             section_burst_detection_asjc(
-                df_summary,
+                df_summary
             )
             
         else:
