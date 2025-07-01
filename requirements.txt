@@ -5,3 +5,4 @@ polars
 plotly
 streamlit-aggrid
 scipy
+burst_detection
