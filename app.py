@@ -4,6 +4,7 @@ import plotly.express as px
 import re
 from st_aggrid import AgGrid, GridOptionsBuilder
 from scipy.stats import linregress
+from burst_detection import burst_detection
 
 # ========================
 #     HELPER FUNCTIONS
@@ -114,6 +115,84 @@ def quadrant_plot_total_vs_slope(table):
     fig.add_hline(y=slope_cut, line_dash="dash", line_color="gray")
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(table)
+
+def burst_detection_asjc(
+    df_summary,
+    recent_years=3,
+    gamma=1.0,
+    smooth_win=1,
+    burst_level_option="All nonzero burst levels",
+    min_years=3,
+    min_papers=2,
+):
+    """
+    Run burst detection for each ASJC in df_summary.
+    Flags ASJC as 'Emerging' if a burst is detected in the recent period.
+    Allows user to set burst parameters and min data filters.
+    """
+    years = sorted(df_summary["Year"].unique())
+    recent_window = years[-recent_years:]
+
+    results = []
+    for asjc, group in df_summary.groupby("ASJC"):
+        # Filter out fields with too little data
+        group = group.set_index("Year").reindex(years, fill_value=0)
+        counts = group["Unique_Paper_Count"].values
+        total_pubs = counts.sum()
+        n_years = np.count_nonzero(counts)
+
+        if n_years < min_years or total_pubs < min_papers:
+            results.append({
+                "ASJC": asjc,
+                "Burst_in_recent": False,
+                "Burst_years": [],
+                "Details": f"Not enough data (years={n_years}, pubs={total_pubs})"
+            })
+            continue
+
+        # Prepare events array (year repeated by count)
+        events = []
+        for y, c in zip(years, counts):
+            events.extend([y] * c)
+        n = len(events)
+        s = [years[0], years[-1]]
+
+        if n < 2:
+            results.append({
+                "ASJC": asjc,
+                "Burst_in_recent": False,
+                "Burst_years": [],
+                "Details": "Not enough events"
+            })
+            continue
+
+        # Run burst detection
+        q, d, r = burst_detection(events, n, s, gamma, smooth_win)
+
+        # Decide which bursts to use
+        burst_years = []
+        if burst_level_option == "Only highest burst level":
+            if r:
+                max_level = max(level for _, _, level in r)
+                for start, end, level in r:
+                    if level == max_level and level > 0:
+                        burst_years.extend(range(start, end + 1))
+        else:  # All nonzero burst levels
+            for start, end, level in r:
+                if level > 0:
+                    burst_years.extend(range(start, end + 1))
+
+        burst_years = set(burst_years)
+        burst_in_recent = any(y in recent_window for y in burst_years)
+        results.append({
+            "ASJC": asjc,
+            "Burst_in_recent": burst_in_recent,
+            "Burst_years": sorted(burst_years),
+            "Details": ""
+        })
+
+    burst_df = pd.DataFrame(results)
+    return burst_df
 
 # ========================
 #     DATA LOADING
@@ -680,7 +759,38 @@ def section_trend_slope_classification(
     quadrant_plot_total_vs_slope(table)
     
     return table
+
+def section_burst_detection_asjc(
+    df_summary,
+    recent_years=3,
+    gamma=1.0,
+    smooth_win=1,
+    burst_level_option="All nonzero burst levels",
+    min_years=3,
+    min_papers=2,
+):
+    st.subheader("Kleinberg’s Burst Detection")
+    gamma = st.number_input("Burst penalty (`gamma`)", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
+    smooth_win = st.number_input("Smoothing window (`smooth_win`)", min_value=1, max_value=10, value=1, step=1)
+    burst_level_option = st.radio(
+        "Which bursts to flag as 'emerging'?",
+        options=["All nonzero burst levels", "Only highest burst level"],
+        index=0
+    )
+    min_years = st.number_input("Minimum years of data per ASJC", min_value=2, max_value=10, value=3, step=1)
+    min_papers = st.number_input("Minimum total papers per ASJC", min_value=1, max_value=50, value=2, step=1)
     
+    burst_df = burst_detection_asjc(
+        df_summary,
+        recent_years=3,
+        gamma=gamma,
+        smooth_win=smooth_win,
+        burst_level_option=burst_level_option,
+        min_years=min_years,
+        min_papers=min_papers,
+    )
+    return burst_df
+
 # ===========================
 #         MAIN APP
 # ===========================
@@ -774,6 +884,15 @@ def main():
             )
             section_trend_slope_classification(
                 df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
+            )
+            section_burst_detection_asjc(
+                df_summary,
+                recent_years=3,
+                gamma=1.0,
+                smooth_win=1,
+                burst_level_option="All nonzero burst levels",
+                min_years=3,
+                min_papers=2,
             )
             
         else:
