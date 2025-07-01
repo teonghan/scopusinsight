@@ -491,13 +491,21 @@ def section_author_dashboard(filtered_author_df):
 
 
 def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, selected_types):
-    """Show author-paper-ASJC table and summary, filtered by selected author and type."""
+    """Show author-paper-ASJC table and summary, filtered by selected author and type (with AgGrid)."""
     st.subheader("Author-Paper-ASJC Table (from Source)")
     df_authors = build_author_df_w_year(df_export_with_asjc)
     df_authors = df_authors[df_authors["Author ID"] == selected_author_id]
     df_authors = df_authors[df_authors["Author Type"].isin(selected_types)]
     st.write("Table below shows one row per author, per paper, per ASJC, per author type:")
-    st.dataframe(df_authors, use_container_width=True)
+
+    # AgGrid for author-paper-ASJC table
+    if not df_authors.empty:
+        gb1 = GridOptionsBuilder.from_dataframe(df_authors)
+        gb1.configure_default_column(filterable=True, sortable=True)
+        for col in df_authors.columns:
+            gb1.configure_column(col, filter=True, editable=False)
+        grid_options1 = gb1.build()
+        AgGrid(df_authors, gridOptions=grid_options1, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True)
 
     # Group and summarize
     st.subheader("Summary: Unique Paper Count by Year, ASJC, and Author Type")
@@ -508,8 +516,13 @@ def section_show_author_df_from_source(df_export_with_asjc, selected_author_id, 
             .agg(Unique_Paper_Count=("EID", lambda x: len(pd.unique(x))))
             .reset_index()
         )
-        st.dataframe(summary, use_container_width=True)
-        # Optionally add download button:
+        gb2 = GridOptionsBuilder.from_dataframe(summary)
+        gb2.configure_default_column(filterable=True, sortable=True)
+        for col in summary.columns:
+            gb2.configure_column(col, filter=True, editable=False)
+        grid_options2 = gb2.build()
+        AgGrid(summary, gridOptions=grid_options2, enable_enterprise_modules=True, allow_unsafe_jscode=True, fit_columns_on_grid_load=True)
+
         st.download_button(
             "Download Summary as CSV",
             data=summary.to_csv(index=False),
