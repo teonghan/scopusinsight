@@ -891,9 +891,6 @@ def main():
             section_trend_slope_classification(
                 df_summary, asjc_name_map=None, min_total_default=5, last_year_default=None
             )
-            section_burst_detection_asjc(
-                df_summary
-            )
             
         else:
             st.info("Please upload both the Scopus Source Excel and Export CSV(s) to use this section.")
