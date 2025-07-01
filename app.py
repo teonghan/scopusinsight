@@ -286,6 +286,12 @@ def build_author_df_w_year(df_export_with_asjc):
         correspondence_address = str(row.get("Correspondence Address", ""))
         asjc = row.get("Matched_ASJC_Description", None)
         year = row.get("Year", None)
+
+        # Add more information here !!!
+        title = row.get("Title", None)
+        source = row.get("Source title", None)
+        cited_by = row.get("Cited by", None)
+        
         corresponding_names_raw = correspondence_address.split(";", 1)[0]
         corresponding_names = [x.strip() for x in corresponding_names_raw.split(";") if x.strip()]
         n = min(len(names), len(ids_full), len(authors_with_affil))
@@ -308,7 +314,10 @@ def build_author_df_w_year(df_export_with_asjc):
                 "ASJC": asjc,
                 "Author Type": author_type,
                 "EID": row.get("EID", None),
-                "Year": year
+                "Year": year,
+                "Title": title,
+                "Source": source,
+                "Cited by": cited_by
             })
     df_authors = pd.DataFrame(author_rows)
     
@@ -318,7 +327,7 @@ def build_author_df_w_year(df_export_with_asjc):
         # Remove current possibly non-canonical values and merge canonical ones
         df_authors = df_authors.drop(columns=["Author Name", "Author Name (from ID)", "Affiliation"], errors="ignore")
         df_authors = df_authors.merge(author_ref, on="Author ID", how="left")
-    desired_order = ["Author ID", "Author Name", "Author Name (from ID)", "Affiliation", "Year", "ASJC", "Author Type", "EID"]
+    desired_order = ["EID", "Title", "Source", "Cited by", "Year", "ASJC", "Author Type", "Author ID", "Author Name", "Author Name (from ID)", "Affiliation"]
     df_authors = df_authors[desired_order]
     return df_authors
 
