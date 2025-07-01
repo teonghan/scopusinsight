@@ -683,7 +683,7 @@ def section_trend_slope_classification(
     return table
 
 def section_burst_detection_asjc(
-    df_summary,
+    df_summary
 ):
     def burst_detection_asjc(
         df_summary,
@@ -692,7 +692,7 @@ def section_burst_detection_asjc(
         smooth_win=1,
         burst_level_option="All nonzero burst levels",
         min_years=3,
-        min_papers=2,
+        min_papers=2
     ):
         """
         Run burst detection for each ASJC in df_summary.
