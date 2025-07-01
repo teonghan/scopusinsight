@@ -765,7 +765,7 @@ def section_burst_detection_asjc(
 ):
     st.subheader("Kleinberg’s Burst Detection")
     gamma = st.number_input("Burst penalty (`gamma`)", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
-    smooth_win = st.number_input("Smoothing window (`smooth_win`)", min_value=1, max_value=10, value=1, step=1)
+    ## smooth_win = st.number_input("Smoothing window (`smooth_win`)", min_value=1, max_value=10, value=1, step=1)
     burst_level_option = st.radio(
         "Which bursts to flag as 'emerging'?",
         options=["All nonzero burst levels", "Only highest burst level"],
