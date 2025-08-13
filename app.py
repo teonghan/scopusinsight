@@ -26,6 +26,25 @@ def parse_asjc_list(asjc_str):
     clean_str = str(asjc_str).strip().replace(" ", "").replace(",", ";")
     return [int(code) for code in clean_str.split(";") if code.isdigit()]
 
+def calculate_h_index(df_export):
+    """Calculates the h-index for a given DataFrame of publications."""
+    if 'Cited by' not in df_export.columns or df_export.empty:
+        return 0
+
+    # Ensure 'Cited by' is numeric, coerce errors, and fill NaN with 0
+    citations = pd.to_numeric(df_export['Cited by'], errors='coerce').fillna(0)
+
+    # Filter out publications with no citations
+    citations = citations[citations > 0].sort_values(ascending=False).reset_index(drop=True)
+
+    h_index = 0
+    for i, citation_count in enumerate(citations):
+        if citation_count >= (i + 1):
+            h_index = i + 1
+        else:
+            break
+    return h_index
+
 # ========================
 #     DATA LOADING
 # ========================
@@ -418,6 +437,53 @@ def section_qs_subject_filter(df_source, df_asjc, df_qs_subject, qs_file_uploade
     else:
         st.info("Select one or more QS Narrow Subject Areas, then click 'Filter by QS Subject'.")
 
+def section_basic_information(df_export_tagged):
+    """UI for displaying basic information about the Scopus Export data."""
+    st.subheader("Basic Information")
+
+    if df_export_tagged.empty:
+        st.info("Upload Scopus Export CSV(s) to see basic information.")
+        return
+
+    # Ensure 'Cited by' column is numeric for calculations
+    if 'Cited by' in df_export_tagged.columns:
+        df_export_tagged['Cited by'] = pd.to_numeric(df_export_tagged['Cited by'], errors='coerce').fillna(0)
+    else:
+        st.warning("The 'Cited by' column is not available in the uploaded export data. Citation calculations will not be available.")
+        df_export_tagged['Cited by'] = 0 # Default to 0 if column missing
+
+    col1, col2 = st.columns(2)
+
+    # Calculate and display h-Index
+    h_index = calculate_h_index(df_export_tagged)
+    col1.metric(label="H-Index", value=h_index)
+
+    # Calculate and display Total Citations
+    total_citations = int(df_export_tagged['Cited by'].sum()) # Ensure integer display
+    col2.metric(label="Total Citations", value=total_citations)
+
+    st.markdown("---")
+    st.markdown("#### Publications per Document Type")
+
+    if 'Document Type' in df_export_tagged.columns:
+        document_type_counts = df_export_tagged['Document Type'].value_counts().reset_index()
+        document_type_counts.columns = ['Document Type', 'Count']
+
+        if not document_type_counts.empty:
+            fig_pie = px.pie(document_type_counts,
+                             values='Count',
+                             names='Document Type',
+                             title='Distribution of Publications by Document Type',
+                             template='plotly_white')
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("No 'Document Type' data available for charting.")
+    else:
+        st.warning("The 'Document Type' column is not available in the uploaded export data for pie chart analysis.")
+
+    st.markdown("---")
+
+
 def section_scopus_export_analysis(df_export_tagged, df_qs_subject, export_file_uploaded):
     """UI for analyzing and filtering the uploaded Scopus Export data."""
     st.subheader("Analyze Scopus Export Data by QS Subject")
@@ -503,8 +569,10 @@ def section_scopus_export_analysis(df_export_tagged, df_qs_subject, export_file_
     else:
         st.info("Select one or more QS Narrow Subject Areas to filter your uploaded Scopus Export data.")
 
+    # Call the new section for basic information
+    section_basic_information(df_chart_data)
 
-    st.markdown("---")
+
     st.subheader("Publication Counts by Category")
 
     # Radio button for chart metric selection
