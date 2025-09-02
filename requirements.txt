@@ -7,3 +7,4 @@ streamlit-aggrid
 scipy
 burst_detection
 wordcloud
+pyvis
